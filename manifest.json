@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "BroncoSort",
+  "version": "1.0",
+  "description": "Reorders professors on the Cal Poly Pomona registration portal.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://*.cpp.edu/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://*.cpp.edu/*"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ]
+}
