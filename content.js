@@ -22,7 +22,7 @@ const data = Array.from(instructors).map((el) => {
 // 2. fake ratings
 const fakeRatings = {
   "Antoine Si": 4.8,
-  "Qichao Dong": 4.2,
+  "Qichao Dong": 4.9,
   "Edwin Rodríguez": 3.9,
   "John Korah": 4.5,
 };
@@ -50,13 +50,16 @@ data.forEach((item) => {
 // }
 
 // const rows = Array.from(group.children).filter(
-//   (child) => child.tagName === "TR" && child.querySelector('[id^="MTG_INSTR"]')
+//   (child) => child.tagName === "TR" && child.querySelector('[id^="MTG_INSTR"]'),
 // );
 
 // console.log("top-level rows:", rows.length);
 
 // console.log(
 //   rows.map((row) =>
-//     row.querySelector('[id^="MTG_INSTR"]').innerText.replace(/\s+/g, " ").trim()
-//   )
+//     row
+//       .querySelector('[id^="MTG_INSTR"]')
+//       .innerText.replace(/\s+/g, " ")
+//       .trim(),
+//   ),
 // );
