@@ -55,12 +55,21 @@ export const findSchoolAndProfessors = async (req, res) => {
 
         const professor = exactMatch || professorsFound[0] || null;
 
+        console.log("====== PROFESSOR DEBUG ======");
+        console.log("Query:", profQuery);
+        console.log("All results:", JSON.stringify(professorsFound, null, 2));
+        console.log("Chosen professor:", JSON.stringify(professor, null, 2));
+        console.log("Professor ID field:", professor?.id);
+        console.log("Professor legacyId field:", professor?.legacyId);
+        console.log("=============================");
+
         if (!professor) {
           ratingsByName[profQuery] = {
             found: false,
             profName: null,
             rating: 0,
             numRatings: 0,
+            id: 0,
           };
           continue;
         }
@@ -73,6 +82,7 @@ export const findSchoolAndProfessors = async (req, res) => {
           profName: professor.name,
           rating: professor.overall_rating || 0,
           numRatings: professor.num_ratings || 0,
+          id: professor.id,
         };
       } catch (err) {
         ratingsByName[profQuery] = {

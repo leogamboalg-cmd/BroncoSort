@@ -1,3 +1,9 @@
+const USE_LOCAL = false;
+
+const API_BASE = USE_LOCAL
+  ? "http://localhost:3000"
+  : "https://broncosort.onrender.com";
+
 function cleanName(name) {
   name = name.replace(/\s+/g, " ").trim();
 
@@ -84,7 +90,7 @@ async function fetchRatingsAndSortCourses() {
 
     console.log("Sending to backend:", payload);
 
-    const res = await fetch("http://localhost:3000/api/ratings", {
+    const res = await fetch(`${API_BASE}/api/professor/ratings`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
