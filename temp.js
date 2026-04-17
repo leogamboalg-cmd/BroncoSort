@@ -38,10 +38,9 @@ const data = rows.map((row) => {
 
 // 4. fake ratings
 const fakeRatings = {
-  "Antoine Si": 4.8,
+  "Antoine Si": 2.0,
   "Qichao Dong": 4.2,
   "Edwin Rodríguez": 3.9,
-  "John Korah": 4.5,
 };
 
 // 5. sort only this course block's rows

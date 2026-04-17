@@ -1,58 +1,98 @@
 import { RMPClient } from "ratemyprofessors-client";
+
 const client = new RMPClient();
 
-export const findSchoolAndProfessor = async (req, res) => {
+function normalizeName(name) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function dedupeNames(names) {
+  return [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+}
+
+export const findSchoolAndProfessors = async (req, res) => {
   try {
-    // Get everything from the request query
-    // Example URL: /api/search?school=Cal Poly Pomona&prof=Thanh Nguyen
-    const schoolQuery = req.query.school;
-    const profQuery = req.query.prof;
+    const { school, professors } = req.body;
 
-    if (!schoolQuery || !profQuery) {
-      return res
-        .status(400)
-        .json({ error: "Missing school or prof parameter" });
-    }
-
-    // 1. Search for the school provided by the extension
-    const schoolResult = await client.searchSchools(schoolQuery);
-    // Find the closest name match
-    const school = schoolResult.schools.find((s) =>
-      s.name.toLowerCase().includes(schoolQuery.toLowerCase()),
-    );
-    // console.log(school);
-    if (!school) {
-      return res.status(404).json({ error: "School not found" });
-    }
-
-    // 2. Search for the professor within that specific school ID
-    const professorResult = await client.searchProfessors(profQuery, {
-      school_id: school.id,
-      page_size: 5,
-    });
-    console.log(professorResult);
-    const professor = professorResult.professors[0];
-
-    if (!professor) {
-      return res.status(404).json({ error: "Professor not found" });
-    }
-
-    if (professor.name != profQuery) {
-      return res.status(200).json({
-        found: false,
-        message: "No exact match found",
-        rating: 0, // or null, to help your "put at the bottom" sorting logic
+    if (!school || !Array.isArray(professors) || professors.length === 0) {
+      return res.status(400).json({
+        error: "Missing school or professors array",
       });
     }
 
-    // 3. Return the dynamic results
-    res.json({
-      schoolFound: school.name,
-      profName: professor.name,
-      rating: professor.overall_rating,
-      numRatings: professor.num_ratings,
+    const cleanedProfessors = dedupeNames(professors);
+
+    // 1. Find school once
+    const schoolResult = await client.searchSchools(school);
+    const matchedSchool = schoolResult.schools.find((s) =>
+      s.name.toLowerCase().includes(school.toLowerCase()),
+    );
+
+    if (!matchedSchool) {
+      return res.status(404).json({ error: "School not found" });
+    }
+
+    const ratingsByName = {};
+
+    // 2. Search each professor within that school
+    for (const profQuery of cleanedProfessors) {
+      try {
+        const professorResult = await client.searchProfessors(profQuery, {
+          school_id: matchedSchool.id,
+          page_size: 5,
+        });
+
+        const professorsFound = professorResult.professors || [];
+
+        const exactMatch = professorsFound.find(
+          (p) => normalizeName(p.name) === normalizeName(profQuery),
+        );
+
+        const professor = exactMatch || professorsFound[0] || null;
+
+        if (!professor) {
+          ratingsByName[profQuery] = {
+            found: false,
+            profName: null,
+            rating: 0,
+            numRatings: 0,
+          };
+          continue;
+        }
+
+        const isExact =
+          normalizeName(professor.name) === normalizeName(profQuery);
+
+        ratingsByName[profQuery] = {
+          found: isExact,
+          profName: professor.name,
+          rating: professor.overall_rating || 0,
+          numRatings: professor.num_ratings || 0,
+        };
+      } catch (err) {
+        ratingsByName[profQuery] = {
+          found: false,
+          profName: null,
+          rating: 0,
+          numRatings: 0,
+          error: "Lookup failed",
+        };
+      }
+    }
+
+    return res.json({
+      schoolFound: matchedSchool.name,
+      ratingsByName,
     });
   } catch (error) {
-    res.status(500).json({ error: "Server error fetching data" });
+    console.error("Server error fetching professor data:", error);
+    return res.status(500).json({
+      error: "Server error fetching data",
+    });
   }
 };
