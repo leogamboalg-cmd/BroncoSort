@@ -24,7 +24,25 @@ async function wakeServer() {
   }
 }
 
-wakeServer();
+function getTargetDocument() {
+  const iframe =
+    document.querySelector('iframe[name="TargetContent"]') ||
+    document.querySelector("#ptifrmtgtframe");
+
+  if (!iframe) {
+    console.error("TargetContent iframe not found");
+    return null;
+  }
+
+  const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
+
+  if (!innerDoc) {
+    console.error("Could not access iframe document");
+    return null;
+  }
+
+  return innerDoc;
+}
 
 function cleanName(name) {
   name = name.replace(/\s+/g, " ").trim();
@@ -53,62 +71,119 @@ function getCourseTitle(courseBox) {
   return fallback || courseBox.id;
 }
 
-const courseBoxes = Array.from(
-  document.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX2$"]'),
-);
+function collectCourses(doc) {
+  const courseBoxes = Array.from(
+    doc.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX2$"]'),
+  );
 
-const courses = courseBoxes
-  .map((courseBox) => {
-    const optionBlocks = Array.from(
-      courseBox.querySelectorAll(
-        ':scope [id^="win0divSSR_CLSRSLT_WRK_GROUPBOX3$"]',
-      ),
-    ).filter((block) => {
-      return (
-        block.closest('[id^="MTG_INSTR"]') === null &&
-        block.closest('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX2$"]') === courseBox
-      );
-    });
-
-    const options = optionBlocks
-      .map((block) => {
+  const courses = courseBoxes
+    .map((courseBox) => {
+      // only look inside THIS course box
+      const optionBlocks = Array.from(
+        courseBox.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX3$"]'),
+      ).filter((block) => {
         const instrEl = block.querySelector('[id^="MTG_INSTR"]');
-        const rawName = instrEl ? instrEl.innerText : "";
-        const name = rawName ? cleanName(rawName) : "";
+        return !!instrEl;
+      });
 
-        return {
-          name,
-          blockId: block.id,
-          block,
-        };
-      })
-      .filter((opt) => opt.name);
+      const options = optionBlocks
+        .map((block) => {
+          const instrEl = block.querySelector('[id^="MTG_INSTR"]');
+          const rawName = instrEl ? instrEl.innerText : "";
+          const name = rawName ? cleanName(rawName) : "";
 
-    return {
-      courseBoxId: courseBox.id,
-      courseTitle: getCourseTitle(courseBox),
-      options,
-    };
-  })
-  .filter((course) => course.options.length > 0);
+          return {
+            name,
+            block,
+            instrEl,
+          };
+        })
+        .filter((opt) => opt.name && isRealProfessorName(opt.name));
 
-const uniqueProfessorNames = [
-  ...new Set(
-    courses.flatMap((course) => course.options.map((opt) => opt.name)),
-  ),
-].sort();
+      return {
+        courseBox,
+        courseTitle: getCourseTitle(courseBox),
+        options,
+      };
+    })
+    .filter((course) => course.options.length > 0);
 
-console.log({ courses, uniqueProfessorNames });
+  return courses;
+}
+
+function addOrUpdateRating(opt, ratingInfo, doc) {
+  const instrEl = opt.instrEl;
+  if (!instrEl) return;
+
+  instrEl.textContent = cleanName(instrEl.innerText);
+
+  const existing = opt.block.querySelector(".broncosort-rating");
+  if (existing) existing.remove();
+
+  const rating = ratingInfo?.rating;
+  const numRatings = ratingInfo?.numRatings;
+  const professorId = ratingInfo?.id;
+
+  const ratingEl = doc.createElement("div");
+  ratingEl.className = "broncosort-rating";
+  ratingEl.style.marginTop = "4px";
+  ratingEl.style.fontSize = "12px";
+  ratingEl.style.fontWeight = "600";
+  ratingEl.style.color = "#444";
+
+  const ratingText =
+    rating != null
+      ? `⭐ ${rating}${numRatings ? ` (${numRatings})` : ""}`
+      : "No rating";
+
+  if (professorId) {
+    const link = doc.createElement("a");
+    link.href = `https://www.ratemyprofessors.com/professor/${professorId}`;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.style.textDecoration = "none";
+    link.style.color = "#444";
+    link.textContent = ratingText;
+    ratingEl.appendChild(link);
+  } else {
+    ratingEl.textContent = ratingText;
+  }
+
+  instrEl.insertAdjacentElement("afterend", ratingEl);
+}
 
 async function fetchRatingsAndSortCourses() {
   try {
+    const doc = getTargetDocument();
+    if (!doc) return;
+
+    const courses = collectCourses(doc);
+
+    console.log(
+      "Courses found:",
+      courses.map((c) => ({
+        title: c.courseTitle,
+        names: c.options.map((o) => o.name),
+      })),
+    );
+
+    const uniqueProfessorNames = [
+      ...new Set(
+        courses.flatMap((course) => course.options.map((opt) => opt.name)),
+      ),
+    ].sort();
+
+    if (!uniqueProfessorNames.length) {
+      console.log("No professors found.");
+      return;
+    }
+
     const payload = {
       school: "Cal Poly Pomona",
       professors: uniqueProfessorNames,
     };
 
     console.log("Sending to backend:", payload);
-    console.log("Using API base:", API_BASE);
 
     const res = await fetch(`${API_BASE}/api/professor/ratings`, {
       method: "POST",
@@ -119,12 +194,8 @@ async function fetchRatingsAndSortCourses() {
     });
 
     if (!res.ok) {
-      const text = await res.text(); // raw response (important)
-
-      console.error("❌ Backend error response:");
-      console.error("Status:", res.status);
-      console.error("Body:", text);
-
+      const text = await res.text();
+      console.error("Backend error:", res.status, text);
       throw new Error(`Request failed: ${res.status}`);
     }
 
@@ -140,53 +211,20 @@ async function fetchRatingsAndSortCourses() {
         return rB - rA;
       });
 
+      // only move option blocks inside THIS course box
       const parent = course.options[0]?.block?.parentElement;
       if (!parent) return;
 
       course.options.forEach((opt) => {
-        const instrEl = opt.block.querySelector('[id^="MTG_INSTR"]');
-        if (instrEl) {
-          instrEl.textContent = cleanName(instrEl.innerText);
-        }
-
-        // avoid duplicates
-        const existing = opt.block.querySelector(".broncosort-rating");
-        if (existing) existing.remove();
-
-        const rating = ratingsByName[opt.name]?.rating;
-        const numRatings = ratingsByName[opt.name]?.numRatings;
-        const professorId = ratingsByName[opt.name]?.id;
-
-        const ratingEl = document.createElement("div");
-        ratingEl.className = "broncosort-rating";
-        ratingEl.style.marginTop = "4px";
-        ratingEl.style.fontSize = "12px";
-        ratingEl.style.fontWeight = "600";
-        ratingEl.style.color = "#444";
-        console.log(opt.name, ratingsByName[opt.name]);
-        const ratingText =
-          rating != null
-            ? `⭐ ${rating}${numRatings ? ` (${numRatings})` : ""}`
-            : "No rating";
-
-        const link = document.createElement("a");
-        link.href = `https://www.ratemyprofessors.com/professor/${professorId}`;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.style.textDecoration = "none";
-        link.style.color = "#444";
-        link.textContent = ratingText;
-        console.log("Link added!");
-
-        ratingEl.appendChild(link);
-
-        instrEl.insertAdjacentElement("afterend", ratingEl);
+        addOrUpdateRating(opt, ratingsByName[opt.name], doc);
       });
 
-      course.options.forEach((opt) => parent.appendChild(opt.block));
+      course.options.forEach((opt) => {
+        parent.appendChild(opt.block);
+      });
 
       console.log(
-        "Sorted:",
+        "Sorted within course only:",
         course.courseTitle,
         course.options.map(
           (opt) => `${opt.name} (${ratingsByName[opt.name]?.rating || 0})`,
@@ -198,4 +236,49 @@ async function fetchRatingsAndSortCourses() {
   }
 }
 
-fetchRatingsAndSortCourses();
+function isRealProfessorName(name) {
+  const cleaned = cleanName(name).toLowerCase();
+
+  return ![
+    "to be announced",
+    "tba",
+    "staff",
+    "instructor tba",
+    "unknown",
+  ].includes(cleaned);
+}
+
+function startWhenReady() {
+  let tries = 0;
+  const maxTries = 20;
+
+  const timer = setInterval(() => {
+    const doc = getTargetDocument();
+    const count = doc?.querySelectorAll('[id^="MTG_INSTR"]').length || 0;
+
+    console.log("Waiting for instructors in iframe...", count);
+
+    if (count > 0) {
+      clearInterval(timer);
+      fetchRatingsAndSortCourses();
+      return;
+    }
+
+    tries += 1;
+    if (tries >= maxTries) {
+      clearInterval(timer);
+      console.log("Timed out waiting for instructor rows.");
+    }
+  }, 1000);
+}
+
+wakeServer();
+
+if (document.readyState === "complete") {
+  startWhenReady();
+} else {
+  window.addEventListener("load", () => {
+    startWhenReady();
+  });
+}
+startWhenReady();

@@ -55,14 +55,6 @@ export const findSchoolAndProfessors = async (req, res) => {
 
         const professor = exactMatch || professorsFound[0] || null;
 
-        console.log("====== PROFESSOR DEBUG ======");
-        console.log("Query:", profQuery);
-        console.log("All results:", JSON.stringify(professorsFound, null, 2));
-        console.log("Chosen professor:", JSON.stringify(professor, null, 2));
-        console.log("Professor ID field:", professor?.id);
-        console.log("Professor legacyId field:", professor?.legacyId);
-        console.log("=============================");
-
         if (!professor) {
           ratingsByName[profQuery] = {
             found: false,
