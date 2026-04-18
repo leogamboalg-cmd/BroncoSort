@@ -3,7 +3,7 @@ const USE_LOCAL = false;
 const API_BASE = USE_LOCAL
   ? "http://localhost:3000"
   : "https://broncosort.onrender.com";
-
+console.log("BroncoSort loaded:", window.location.href);
 async function wakeServer() {
   try {
     const response = await fetch(`${API_BASE}/api/health`, {
@@ -30,7 +30,7 @@ function getTargetDocument() {
     document.querySelector("#ptifrmtgtframe");
 
   if (!iframe) {
-    console.error("TargetContent iframe not found");
+    // console.error("TargetContent iframe not found");
     return null;
   }
 
@@ -248,28 +248,33 @@ function isRealProfessorName(name) {
   ].includes(cleaned);
 }
 
+let broncoSortSignature = "";
+
+function getCurrentSignature(doc) {
+  const names = Array.from(doc.querySelectorAll('[id^="MTG_INSTR"]'))
+    .map((el) => cleanName(el.innerText || ""))
+    .filter(Boolean);
+
+  return names.join("|");
+}
+
 function startWhenReady() {
-  let tries = 0;
-  const maxTries = 20;
-
-  const timer = setInterval(() => {
+  setInterval(() => {
     const doc = getTargetDocument();
-    const count = doc?.querySelectorAll('[id^="MTG_INSTR"]').length || 0;
+    if (!doc) return;
 
-    console.log("Waiting for instructors in iframe...", count);
+    const count = doc.querySelectorAll('[id^="MTG_INSTR"]').length;
+    if (count === 0) return;
 
-    if (count > 0) {
-      clearInterval(timer);
-      fetchRatingsAndSortCourses();
-      return;
-    }
+    const newSignature = getCurrentSignature(doc);
+    if (!newSignature) return;
 
-    tries += 1;
-    if (tries >= maxTries) {
-      clearInterval(timer);
-      console.log("Timed out waiting for instructor rows.");
-    }
-  }, 1000);
+    if (newSignature === broncoSortSignature) return;
+
+    broncoSortSignature = newSignature;
+    console.log("BroncoSort running...");
+    fetchRatingsAndSortCourses();
+  }, 2000);
 }
 
 wakeServer();
@@ -281,4 +286,3 @@ if (document.readyState === "complete") {
     startWhenReady();
   });
 }
-startWhenReady();
