@@ -2,6 +2,8 @@
 
 BroncoSort is a Chrome extension for the Cal Poly Pomona registration portal that finds instructor names inside the PeopleSoft results iframe, looks up those professors on Rate My Professors, injects rating links into the page, and reorders sections so higher-rated instructors appear first within each course.
 
+<img width="1504" height="942" alt="image" src="https://github.com/user-attachments/assets/09fbd853-0cbf-4f4b-86db-0fc6c523f915" />
+
 ## What It Does
 
 - Detects the registration results iframe before doing any DOM work
