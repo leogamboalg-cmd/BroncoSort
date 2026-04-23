@@ -10,3 +10,17 @@ index.html
 rearrange.js
 RegistrationDOM.txt
 temp.js
+
+# Local environment files
+.env
+.env.*
+backend/.env
+!.env.example
+!backend/.env.example
+
+# Local dependencies
+node_modules/
+backend/node_modules/
+
+# Local logs
+*.log
