@@ -6,6 +6,8 @@ function normalizeName(name) {
   return name
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/-/g, " ") // ✅ important
+    .replace(/[^\w\s]/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
@@ -44,18 +46,28 @@ export const findSchoolAndProfessors = async (req, res) => {
       try {
         const professorResult = await client.searchProfessors(profQuery, {
           school_id: matchedSchool.id,
-          page_size: 5,
+          page_size: 20,
         });
 
         const professorsFound = professorResult.professors || [];
+        console.log("Query:", profQuery);
+        console.log("Normalized query:", normalizeName(profQuery));
+        console.log(
+          "Results:",
+          professorsFound.map((p) => ({
+            name: p.name,
+            normalized: normalizeName(p.name),
+            rating: p.overall_rating,
+            id: p.id,
+          })),
+        );
 
+        // 🔥 STRICT MATCH ONLY (no fallback)
         const exactMatch = professorsFound.find(
           (p) => normalizeName(p.name) === normalizeName(profQuery),
         );
 
-        const professor = exactMatch || professorsFound[0] || null;
-
-        if (!professor) {
+        if (!exactMatch) {
           ratingsByName[profQuery] = {
             found: false,
             profName: null,
@@ -66,15 +78,12 @@ export const findSchoolAndProfessors = async (req, res) => {
           continue;
         }
 
-        const isExact =
-          normalizeName(professor.name) === normalizeName(profQuery);
-
         ratingsByName[profQuery] = {
-          found: isExact,
-          profName: professor.name,
-          rating: professor.overall_rating || 0,
-          numRatings: professor.num_ratings || 0,
-          id: professor.id,
+          found: true,
+          profName: exactMatch.name,
+          rating: exactMatch.overall_rating || 0,
+          numRatings: exactMatch.num_ratings || 0,
+          id: exactMatch.id,
         };
       } catch (err) {
         ratingsByName[profQuery] = {
