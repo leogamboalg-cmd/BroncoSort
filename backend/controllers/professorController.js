@@ -1,12 +1,14 @@
 import { RMPClient } from "ratemyprofessors-client";
 
 const client = new RMPClient();
+const cache = new Map();
+const TTL = 1000 * 60 * 60 * 24; // 24 hours
 
 function normalizeName(name) {
   return name
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/-/g, " ") // ✅ important
+    .replace(/-/g, " ")
     .replace(/[^\w\s]/g, "")
     .replace(/\s+/g, " ")
     .trim()
@@ -44,6 +46,19 @@ export const findSchoolAndProfessors = async (req, res) => {
     // 2. Search each professor within that school
     for (const profQuery of cleanedProfessors) {
       try {
+        const cacheKey = `${matchedSchool.id}:${normalizeName(profQuery)}`;
+        const cached = cache.get(cacheKey);
+
+        if (cached && Date.now() - cached.timestamp < TTL) {
+          console.log("Cache hit:", profQuery);
+          ratingsByName[profQuery] = cached.data;
+          continue;
+        }
+
+        if (cached) {
+          cache.delete(cacheKey);
+        }
+
         const professorResult = await client.searchProfessors(profQuery, {
           school_id: matchedSchool.id,
           page_size: 20,
@@ -62,7 +77,6 @@ export const findSchoolAndProfessors = async (req, res) => {
           })),
         );
 
-        // 🔥 STRICT MATCH ONLY (no fallback)
         const exactMatch = professorsFound.find(
           (p) => normalizeName(p.name) === normalizeName(profQuery),
         );
@@ -75,6 +89,12 @@ export const findSchoolAndProfessors = async (req, res) => {
             numRatings: 0,
             id: 0,
           };
+
+          cache.set(cacheKey, {
+            data: ratingsByName[profQuery],
+            timestamp: Date.now(),
+          });
+
           continue;
         }
 
@@ -85,6 +105,11 @@ export const findSchoolAndProfessors = async (req, res) => {
           numRatings: exactMatch.num_ratings || 0,
           id: exactMatch.id,
         };
+
+        cache.set(cacheKey, {
+          data: ratingsByName[profQuery],
+          timestamp: Date.now(),
+        });
       } catch (err) {
         ratingsByName[profQuery] = {
           found: false,
