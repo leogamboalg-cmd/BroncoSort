@@ -16,7 +16,14 @@ const ratingsLimiter = rateLimit({
 });
 
 // Middleware
-app.use(cors());
+// app.use(cors());
+app.use(cors({
+  origin: [
+    "https://cmsweb.cms.cpp.edu",
+    "http://localhost:3000",
+    "http://localhost:5500",
+  ],
+}));
 app.use(express.json());
 
 // Basic GET route
