@@ -1,8 +1,22 @@
 import { RMPClient } from "ratemyprofessors-client";
+import "dotenv/config";
+import { Redis } from "@upstash/redis";
 
 const client = new RMPClient();
-const cache = new Map();
-const TTL = 1000 * 60 * 60 * 24; // 24 hours
+const TTL = 60 * 60 * 24; // 24 hours in seconds
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
+function cleanProfessorName(name) {
+  return name
+    .replace(/\bto be announced\b/gi, "")
+    .replace(/\bTBA\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function normalizeName(name) {
   return name
@@ -29,34 +43,48 @@ export const findSchoolAndProfessors = async (req, res) => {
       });
     }
 
-    const cleanedProfessors = dedupeNames(professors);
-
-    // 1. Find school once
-    const schoolResult = await client.searchSchools(school);
-    const matchedSchool = schoolResult.schools.find((s) =>
-      s.name.toLowerCase().includes(school.toLowerCase()),
+    const cleanedProfessors = dedupeNames(
+      professors.map((name) => cleanProfessorName(name)),
     );
 
+    // 1. Find school once
+    const schoolCacheKey = `rmp:school:${normalizeName(school)}`;
+    let matchedSchool = await redis.get(schoolCacheKey);
+
     if (!matchedSchool) {
-      return res.status(404).json({ error: "School not found" });
+      const schoolResult = await client.searchSchools(school);
+      matchedSchool = schoolResult.schools.find((s) =>
+        s.name.toLowerCase().includes(school.toLowerCase()),
+      );
+
+      if (!matchedSchool) {
+        return res.status(404).json({ error: "School not found" });
+      }
+
+      await redis.set(schoolCacheKey, matchedSchool, {
+        ex: TTL,
+      });
     }
 
     const ratingsByName = {};
 
+    const cacheKeys = cleanedProfessors.map(
+      (prof) => `rmp:${matchedSchool.id}:${normalizeName(prof)}`,
+    );
+
+    const cachedResults = await redis.mget(...cacheKeys);
+
     // 2. Search each professor within that school
-    for (const profQuery of cleanedProfessors) {
+    for (let i = 0; i < cleanedProfessors.length; i++) {
+      const profQuery = cleanedProfessors[i];
+      const cacheKey = cacheKeys[i];
+      const cached = cachedResults[i];
+
       try {
-        const cacheKey = `${matchedSchool.id}:${normalizeName(profQuery)}`;
-        const cached = cache.get(cacheKey);
-
-        if (cached && Date.now() - cached.timestamp < TTL) {
-          console.log("Cache hit:", profQuery);
-          ratingsByName[profQuery] = cached.data;
-          continue;
-        }
-
         if (cached) {
-          cache.delete(cacheKey);
+          console.log("Redis cache hit:", profQuery);
+          ratingsByName[profQuery] = cached;
+          continue;
         }
 
         const professorResult = await client.searchProfessors(profQuery, {
@@ -90,9 +118,8 @@ export const findSchoolAndProfessors = async (req, res) => {
             id: 0,
           };
 
-          cache.set(cacheKey, {
-            data: ratingsByName[profQuery],
-            timestamp: Date.now(),
+          await redis.set(cacheKey, ratingsByName[profQuery], {
+            ex: TTL,
           });
 
           continue;
@@ -106,9 +133,8 @@ export const findSchoolAndProfessors = async (req, res) => {
           id: exactMatch.id,
         };
 
-        cache.set(cacheKey, {
-          data: ratingsByName[profQuery],
-          timestamp: Date.now(),
+        await redis.set(cacheKey, ratingsByName[profQuery], {
+          ex: TTL,
         });
       } catch (err) {
         ratingsByName[profQuery] = {
