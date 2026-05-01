@@ -44,7 +44,6 @@ The backend is a small Express app that:
 - searches Rate My Professors for the school once
 - searches professors within that school
 - tries to find an exact normalized name match first
-- falls back to the first result if an exact match is not found
 - returns rating, rating count, and Rate My Professors professor ID
 
 ## Project Structure
