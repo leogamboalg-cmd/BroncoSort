@@ -102,6 +102,8 @@ export const findSchoolAndProfessors = async (req, res) => {
             normalized: normalizeName(p.name),
             rating: p.overall_rating,
             id: p.id,
+            difficulty: p.level_of_difficulty,
+            percentTakeAgain: p.percent_take_again,
           })),
         );
 
@@ -115,7 +117,9 @@ export const findSchoolAndProfessors = async (req, res) => {
             profName: null,
             rating: 0,
             numRatings: 0,
-            id: 0,
+            id: null,
+            difficulty: null,
+            percentTakeAgain: null,
           };
 
           await redis.set(cacheKey, ratingsByName[profQuery], {
@@ -131,6 +135,8 @@ export const findSchoolAndProfessors = async (req, res) => {
           rating: exactMatch.overall_rating || 0,
           numRatings: exactMatch.num_ratings || 0,
           id: exactMatch.id,
+          difficulty: exactMatch.level_of_difficulty ?? null,
+          percentTakeAgain: exactMatch.percent_take_again ?? null,
         };
 
         await redis.set(cacheKey, ratingsByName[profQuery], {
@@ -142,6 +148,9 @@ export const findSchoolAndProfessors = async (req, res) => {
           profName: null,
           rating: 0,
           numRatings: 0,
+          id: null,
+          difficulty: null,
+          percentTakeAgain: null,
           error: "Lookup failed",
         };
       }
