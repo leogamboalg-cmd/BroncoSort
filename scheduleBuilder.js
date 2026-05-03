@@ -1,279 +1,43 @@
-//content.js
-const USE_LOCAL = false;
-const SCALE = 0.6;
-const API_BASE = USE_LOCAL
+//scheduleBuilder.js
+const IS_LOCAL = false;
+const POPUP_SCALE = 0.6;
+
+console.log("Schedule Builder Loaded");
+
+const API_URL = IS_LOCAL
   ? "http://localhost:3000"
   : "https://broncosort.onrender.com";
-console.log("BroncoSort loaded:", window.location.href);
-async function wakeServer() {
-  try {
-    const response = await fetch(`${API_BASE}/api/health`, {
-      method: "GET",
-    });
 
-    const data = await response.json().catch(() => null);
+let lastSignature = "";
+let isRunning = false;
+let debounceTimer = null;
+let activePopupAnchor = null;
+let popupTimer = null;
 
-    if (!response.ok) {
-      throw new Error(
-        data?.error || `Request failed with status ${response.status}`,
-      );
-    }
-
-    console.log("Waking up server");
-  } catch (error) {
-    console.error("Could not wake up server");
-  }
+function isCorrectPage() {
+  return window.location.href.includes("select-sections");
 }
 
-function getTargetDocument() {
-  const iframe =
-    document.querySelector('iframe[name="TargetContent"]') ||
-    document.querySelector("#ptifrmtgtframe");
-
-  if (!iframe) {
-    // console.error("TargetContent iframe not found");
-    return null;
-  }
-
-  const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
-
-  if (!innerDoc) {
-    console.error("Could not access iframe document");
-    return null;
-  }
-
-  return innerDoc;
+function getRows() {
+  return [...document.querySelectorAll(".cx-MuiExpansionPanelSummary-root")];
 }
 
-function cleanName(name) {
-  name = name.replace(/\s+/g, " ").trim();
-
-  const parts = name.split(" ");
-  if (parts.length % 2 === 0) {
-    const half = parts.length / 2;
-    const first = parts.slice(0, half).join(" ");
-    const second = parts.slice(half).join(" ");
-    if (first === second) name = first;
-  }
-
-  return name;
+function cleanText(text) {
+  return text.replace(/\s+/g, " ").trim();
 }
 
-function getCourseTitle(courseBox) {
-  const allText = courseBox.innerText
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const match = allText.find((line) => /^[A-Z]{2,4}\s+\d{4}\s*-/.test(line));
-  if (match) return match;
-
-  const fallback = allText.find((line) => /^[A-Z]{2,4}\s+\d{4}/.test(line));
-  return fallback || courseBox.id;
-}
-
-function collectCourses(doc) {
-  const courseBoxes = Array.from(
-    doc.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX2$"]'),
-  );
-
-  const courses = courseBoxes
-    .map((courseBox) => {
-      // only look inside THIS course box
-      const optionBlocks = Array.from(
-        courseBox.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX3$"]'),
-      ).filter((block) => {
-        const instrEl = block.querySelector('[id^="MTG_INSTR"]');
-        return !!instrEl;
-      });
-
-      const options = optionBlocks
-        .map((block) => {
-          const instrEl = block.querySelector('[id^="MTG_INSTR"]');
-          const rawName = instrEl ? instrEl.innerText : "";
-          const name = rawName ? cleanName(rawName) : "";
-
-          return {
-            name,
-            block,
-            instrEl,
-          };
-        })
-        .filter((opt) => opt.name && isRealProfessorName(opt.name));
-
-      return {
-        courseBox,
-        courseTitle: getCourseTitle(courseBox),
-        options,
-      };
+function getSignature(rows) {
+  return rows
+    .map((row) => {
+      const clone = row.cloneNode(true);
+      clone.querySelectorAll(".broncosort-rating").forEach((el) => el.remove());
+      return cleanText(clone.innerText);
     })
-    .filter((course) => course.options.length > 0);
-
-  return courses;
-}
-
-function addOrUpdateRating(opt, ratingInfo, doc) {
-  const instrEl = opt.instrEl;
-  if (!instrEl) return;
-
-  instrEl.textContent = cleanName(instrEl.innerText);
-
-  const existing = opt.block.querySelector(".broncosort-rating");
-  if (existing) existing.remove();
-
-  const rating = ratingInfo?.rating;
-  const numRatings = ratingInfo?.numRatings;
-  const professorId = ratingInfo?.id;
-
-  const ratingEl = doc.createElement("div");
-  ratingEl.className = "broncosort-rating";
-  ratingEl.style.marginTop = "4px";
-  ratingEl.style.fontSize = "12px";
-  ratingEl.style.fontWeight = "600";
-  ratingEl.style.color = "#444";
-
-  const ratingText =
-    rating != null
-      ? `<span style="
-        color:#1B5E20;
-        font-size:28px;
-        margin-right:4px;
-        position:relative;
-        top:-1px;
-      ">★</span> ${rating}${numRatings ? ` (${numRatings})` : ""}`
-      : "No rating";
-
-  if (professorId) {
-    const link = doc.createElement("a");
-    link.href = `https://www.ratemyprofessors.com/professor/${professorId}`;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.style.textDecoration = "none";
-    link.style.color = "#444";
-    link.innerHTML = ratingText;
-
-    ratingEl.appendChild(link);
-  } else {
-    ratingEl.innerHTML = ratingText;
-  }
-
-  instrEl.insertAdjacentElement("afterend", ratingEl);
-
-  let popupTimer;
-
-  ratingEl.style.cursor = "pointer";
-  ratingEl.title = "Professor details";
-
-  ratingEl.addEventListener("mouseenter", (e) => {
-    clearTimeout(popupTimer);
-
-    showProfessorPopup(
-      {
-        name: opt.name,
-        ...ratingInfo,
-      },
-      doc,
-      e,
-    );
-  });
-
-  ratingEl.addEventListener("mouseleave", () => {
-    popupTimer = setTimeout(() => {
-      const popup = doc.querySelector(".bs-prof-popup");
-      if (!popup || !popup.matches(":hover")) {
-        popup?.remove();
-      }
-    }, 200);
-  });
-}
-
-async function fetchRatingsAndSortCourses() {
-  try {
-    const doc = getTargetDocument();
-    if (!doc) return;
-    injectBroncoSortStyles(doc);
-
-    const courses = collectCourses(doc);
-
-    console.log(
-      "Courses found:",
-      courses.map((c) => ({
-        title: c.courseTitle,
-        names: c.options.map((o) => o.name),
-      })),
-    );
-
-    const uniqueProfessorNames = [
-      ...new Set(
-        courses.flatMap((course) => course.options.map((opt) => opt.name)),
-      ),
-    ].sort();
-
-    if (!uniqueProfessorNames.length) {
-      console.log("No professors found.");
-      return;
-    }
-
-    const payload = {
-      school: "Cal Poly Pomona",
-      professors: uniqueProfessorNames,
-    };
-
-    console.log("Sending to backend:", payload);
-
-    const res = await fetch(`${API_BASE}/api/professor/ratings`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Backend error:", res.status, text);
-      throw new Error(`Request failed: ${res.status}`);
-    }
-
-    const data = await res.json();
-    const ratingsByName = data.ratingsByName || {};
-
-    console.log("Received ratings:", ratingsByName);
-
-    courses.forEach((course) => {
-      course.options.sort((a, b) => {
-        const rA = ratingsByName[a.name]?.rating || 0;
-        const rB = ratingsByName[b.name]?.rating || 0;
-        return rB - rA;
-      });
-
-      // only move option blocks inside THIS course box
-      const parent = course.options[0]?.block?.parentElement;
-      if (!parent) return;
-
-      course.options.forEach((opt) => {
-        addOrUpdateRating(opt, ratingsByName[opt.name], doc);
-      });
-
-      course.options.forEach((opt) => {
-        parent.appendChild(opt.block);
-      });
-
-      console.log(
-        "Sorted within course only:",
-        course.courseTitle,
-        course.options.map(
-          (opt) => `${opt.name} (${ratingsByName[opt.name]?.rating || 0})`,
-        ),
-      );
-    });
-  } catch (err) {
-    console.error("Error:", err);
-  }
+    .join("|");
 }
 
 function isRealProfessorName(name) {
-  const cleaned = cleanName(name).toLowerCase();
+  const cleaned = cleanText(name).toLowerCase();
 
   return ![
     "to be announced",
@@ -281,52 +45,221 @@ function isRealProfessorName(name) {
     "staff",
     "instructor tba",
     "unknown",
+    "-",
+    "none",
   ].includes(cleaned);
 }
 
-let broncoSortSignature = "";
+function isProfessorName(text) {
+  const cleaned = cleanText(text);
 
-function getCurrentSignature(doc) {
-  const names = Array.from(doc.querySelectorAll('[id^="MTG_INSTR"]'))
-    .map((el) => cleanName(el.innerText || ""))
-    .filter(Boolean);
+  if (!isRealProfessorName(cleaned)) return false;
 
-  return names.join("|");
+  return /^[\p{L}][\p{L}.'-]*(?: [\p{L}][\p{L}.'-]*)+$/u.test(cleaned);
 }
 
-function startWhenReady() {
-  setInterval(() => {
-    const doc = getTargetDocument();
-    if (!doc) return;
+function getInstructorFromRow(row) {
+  const cells = [...row.querySelectorAll('[role="cell"]')];
 
-    const count = doc.querySelectorAll('[id^="MTG_INSTR"]').length;
-    if (count === 0) return;
+  for (const cell of cells) {
+    const lines = cell.innerText.split("\n").map(cleanText).filter(Boolean);
+    const match = lines.find(isProfessorName);
 
-    const newSignature = getCurrentSignature(doc);
-    if (!newSignature) return;
+    if (match) return match;
+  }
 
-    if (newSignature === broncoSortSignature) return;
-
-    broncoSortSignature = newSignature;
-    console.log("BroncoSort running...");
-    fetchRatingsAndSortCourses();
-  }, 2000);
+  return "TBA";
 }
 
-wakeServer();
+function scheduleRun() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(runBroncoSort, 700);
+}
 
-if (document.readyState === "complete") {
-  startWhenReady();
-} else {
-  window.addEventListener("load", () => {
-    startWhenReady();
+async function runBroncoSort() {
+  if (!isCorrectPage()) return;
+
+  injectScheduleStyles();
+
+  const rows = getRows();
+  if (!rows.length) return;
+
+  const signature = getSignature(rows);
+
+  if (signature === lastSignature) return;
+  if (isRunning) return;
+
+  lastSignature = signature;
+  isRunning = true;
+
+  try {
+    const classes = rows
+      .map((row) => {
+        const instructor = getInstructorFromRow(row);
+
+        return {
+          instructor,
+          rating: 0,
+          element: row,
+          block: row.closest(".cx-MuiGrid-item"),
+        };
+      })
+      .filter((c) => c.block);
+
+    const uniqueProfessorNames = [
+      ...new Set(
+        classes.map((c) => c.instructor).filter((name) => name !== "TBA"),
+      ),
+    ];
+
+    if (!uniqueProfessorNames.length) return;
+
+    console.log("Fetching ratings:", uniqueProfessorNames);
+
+    const res = await fetch(`${API_URL}/api/professor/ratings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        school: "Cal Poly Pomona",
+        professors: uniqueProfessorNames,
+      }),
+    });
+
+    const data = await res.json();
+    const ratingsByName = data.ratingsByName || {};
+
+    classes.forEach((c) => {
+      const ratingInfo = ratingsByName[c.instructor];
+      c.rating = ratingInfo?.rating || 0;
+      addOrUpdateScheduleRating(c.element, c.instructor, ratingInfo);
+    });
+
+    const parent = classes[0].block.parentElement;
+    const sorted = [...classes].sort((a, b) => b.rating - a.rating);
+
+    sorted.forEach((c, i) => {
+      parent.insertBefore(c.block, parent.children[i]);
+    });
+
+    lastSignature = getSignature(getRows());
+
+    console.table(
+      classes.map((c) => ({
+        instructor: c.instructor,
+        rating: c.rating,
+      })),
+    );
+  } catch (err) {
+    console.error("BroncoSort Schedule Builder error:", err);
+  } finally {
+    isRunning = false;
+  }
+}
+
+function addOrUpdateScheduleRating(row, instructor, ratingInfo) {
+  if (!ratingInfo) return;
+
+  const instructorEl = [...row.querySelectorAll('[role="cell"]')].find(
+    (cell) => {
+      const lines = cell.innerText.split("\n").map(cleanText).filter(Boolean);
+      return lines.includes(instructor);
+    },
+  );
+
+  if (!instructorEl) return;
+
+  const existing = instructorEl.querySelector(".broncosort-rating");
+  if (existing) return;
+
+  const rating = ratingInfo?.rating;
+  const numRatings = ratingInfo?.numRatings;
+  const professorId = ratingInfo?.id;
+
+  const ratingEl = document.createElement("div");
+  ratingEl.className = "broncosort-rating";
+  ratingEl.style.marginTop = "6px";
+  ratingEl.style.fontSize = "14px";
+  ratingEl.style.fontWeight = "700";
+  ratingEl.style.color = "#444";
+  ratingEl.style.display = "flex";
+  ratingEl.style.alignItems = "center";
+  ratingEl.style.gap = "4px";
+  ratingEl.style.cursor = "pointer";
+
+  const ratingText =
+    rating != null
+      ? `<span style="color:#1B5E20;font-size:22px;margin-right:3px;position:relative;top:-1px;">★</span> ${rating}${numRatings ? ` (${numRatings})` : ""}`
+      : "No rating";
+
+  ratingEl.addEventListener("mouseenter", (e) => {
+    clearTimeout(popupTimer);
+    activePopupAnchor = e.currentTarget;
+
+    showScheduleProfessorPopup(
+      {
+        name: instructor,
+        ...ratingInfo,
+      },
+      e.currentTarget,
+    );
   });
+
+  ratingEl.addEventListener("mouseleave", () => {
+    popupTimer = setTimeout(() => {
+      const popup = document.querySelector(".bs-prof-popup");
+      if (!popup || !popup.matches(":hover")) {
+        popup?.remove();
+        activePopupAnchor = null;
+      }
+    }, 250);
+  });
+
+  if (professorId) {
+    const link = document.createElement("a");
+    link.href = `https://www.ratemyprofessors.com/professor/${professorId}`;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.style.textDecoration = "none";
+    link.style.color = "#444";
+    link.style.fontSize = "14px";
+    link.style.fontWeight = "700";
+    link.innerHTML = ratingText;
+
+    ratingEl.appendChild(link);
+  } else {
+    ratingEl.innerHTML = ratingText;
+  }
+
+  instructorEl.appendChild(ratingEl);
 }
 
-function showProfessorPopup(prof, doc, e) {
-  doc.querySelector(".bs-prof-popup")?.remove();
+const observer = new MutationObserver(() => {
+  if (!isCorrectPage()) return;
+  scheduleRun();
+});
 
-  const popup = doc.createElement("div");
+observer.observe(document.body, {
+  childList: true,
+  subtree: true,
+});
+
+scheduleRun();
+
+window.addEventListener(
+  "scroll",
+  () => {
+    document.querySelector(".bs-prof-popup")?.remove();
+    activePopupAnchor = null;
+  },
+  true,
+);
+
+function showScheduleProfessorPopup(prof, anchorEl) {
+  document.querySelector(".bs-prof-popup")?.remove();
+
+  const popup = document.createElement("div");
   popup.className = "bs-prof-popup";
 
   const isFound = prof.found !== false;
@@ -335,7 +268,6 @@ function showProfessorPopup(prof, doc, e) {
 
   const rating = hasReviews ? prof.rating : "N/A";
   const difficulty = hasReviews ? prof.difficulty : "N/A";
-
   const takeAgain =
     hasReviews && prof.percentTakeAgain != null && prof.percentTakeAgain >= 0
       ? `${Math.round(prof.percentTakeAgain)}%`
@@ -370,7 +302,9 @@ function showProfessorPopup(prof, doc, e) {
       <div class="bs-avatar">${initials}</div>
 
       <div class="bs-person">
-        <div class="bs-name">${prof.profName || prof.name}</div>
+        <div class="bs-name">
+          ${isFound ? (prof.profName || prof.name) : prof.name}
+        </div>
         <div class="bs-dept">${prof.department || "Computer Science"}</div>
       </div>
 
@@ -378,47 +312,53 @@ function showProfessorPopup(prof, doc, e) {
     </div>
 
     <div class="bs-body">
-  <div class="bs-rank-card">
-    <div class="bs-ring" style="--rank-deg:${ringDegrees}deg;">
-      <div class="bs-ring-inner">
-        <span>TOP</span>
-        <strong>${topPercent != null ? `${topPercent}%` : "—"}</strong>
-      </div>
-    </div>
-
-    <div class="bs-rank-info">
-      <div class="bs-rank-label">▦ Department Ranking</div>
-      <div class="bs-rank-title">${rankTitle}</div>
-      <div class="bs-rank-sub">${rankSub}</div>
+      <div class="bs-rank-card">
+  <div class="bs-ring" style="--rank-deg:${ringDegrees}deg;">
+    <div class="bs-ring-inner">
+      <span>TOP</span>
+      <strong>${topPercent != null ? `${topPercent}%` : "—"}</strong>
     </div>
   </div>
 
-  <div class="bs-stats">
+  <div class="bs-rank-info">
+    <div class="bs-rank-label">▦ Department Ranking</div>
+    <div class="bs-rank-title">${rankTitle}</div>
+    <div class="bs-rank-sub">${rankSub}</div>
+  </div>
+</div>
+
+      <div class="bs-stats">
         <div class="bs-stat-card">
           <div class="bs-icon">★</div>
           <div class="bs-stat-label">Rating</div>
           <div class="bs-stat-value">${rating}<span>/5</span></div>
-          <div class="bs-bar"><div style="width:${rating !== "N/A" ? Math.min((rating / 5) * 100, 100) : 0}%"></div></div>
+          <div class="bs-bar">
+            <div style="width:${rating !== "N/A" ? Math.min((rating / 5) * 100, 100) : 0}%"></div>
+          </div>
         </div>
 
         <div class="bs-stat-card">
           <div class="bs-icon">▰</div>
           <div class="bs-stat-label">Difficulty</div>
           <div class="bs-stat-value">${difficulty}<span>/5</span></div>
-          <div class="bs-bar"><div style="width:${difficulty !== "N/A" ? Math.min((difficulty / 5) * 100, 100) : 0}%"></div></div>
+          <div class="bs-bar">
+            <div style="width:${difficulty !== "N/A" ? Math.min((difficulty / 5) * 100, 100) : 0}%"></div>
+          </div>
         </div>
 
         <div class="bs-stat-card">
           <div class="bs-icon">↻</div>
           <div class="bs-stat-label">Take Again</div>
           <div class="bs-stat-value">${takeAgain}</div>
-          <div class="bs-bar"><div style="width:${takeAgain !== "N/A" ? parseInt(takeAgain) : 0}%"></div></div>
+          <div class="bs-bar">
+            <div style="width:${takeAgain !== "N/A" ? parseInt(takeAgain) : 0}%"></div>
+          </div>
         </div>
       </div>
 
       <div class="bs-review-row">
         <div class="bs-stars">★ ★ ★ ★ <span>★</span></div>
-        <div>${!isFound
+          <div>${!isFound
       ? "Not on RateMyProfessors"
       : hasReviews
         ? `Based on <strong>${reviews}</strong> student reviews`
@@ -439,42 +379,46 @@ function showProfessorPopup(prof, doc, e) {
   `;
 
   const link = popup.querySelector(".bs-btn");
+
   if (prof.id) {
     link.href = `https://www.ratemyprofessors.com/professor/${prof.id}`;
   } else {
     link.remove();
   }
 
-  doc.body.appendChild(popup);
+  document.body.appendChild(popup);
 
   popup.style.position = "fixed";
 
-  const r = e.currentTarget.getBoundingClientRect();
-
-  const popupHeight = popup.offsetHeight * SCALE;
-  const popupWidth = popup.offsetWidth * SCALE;
-  const win = doc.defaultView;
-
-  const spaceBelow = win.innerHeight - r.bottom;
+  const r = anchorEl.getBoundingClientRect();
+  const popupHeight = popup.offsetHeight * POPUP_SCALE;
+  const popupWidth = popup.offsetWidth * POPUP_SCALE;
+  const spaceBelow = window.innerHeight - r.bottom;
 
   const top =
     spaceBelow < popupHeight + 16
       ? r.top - popupHeight - 8
       : r.bottom + 8;
 
-  const left = Math.min(r.left, win.innerWidth - popupWidth - 12);
+  const left = Math.min(r.left, window.innerWidth - popupWidth - 12);
 
   popup.style.left = `${Math.max(12, left)}px`;
   popup.style.top = `${Math.max(12, top)}px`;
 
-  popup.addEventListener("mouseleave", () => popup.remove());
+  popup.addEventListener("mouseenter", () => {
+    clearTimeout(popupTimer);
+  });
+
+  popup.addEventListener("mouseleave", () => {
+    popup.remove();
+    activePopupAnchor = null;
+  });
 }
 
-function injectBroncoSortStyles(doc) {
-  const existing = doc.querySelector("#broncosort-popup-styles");
-  if (existing) existing.remove();
+function injectScheduleStyles() {
+  if (document.querySelector("#broncosort-popup-styles")) return;
 
-  const style = doc.createElement("style");
+  const style = document.createElement("style");
   style.id = "broncosort-popup-styles";
 
   style.textContent = `
@@ -604,17 +548,17 @@ function injectBroncoSortStyles(doc) {
     }
 
     .bs-ring {
-      width: 118px;
-      height: 118px;
-      border-radius: 50%;
-        background:
-      radial-gradient(circle, #ffffff 57%, transparent 58%),
-      conic-gradient(#1ca344 0deg var(--rank-deg), #edf3ee var(--rank-deg) 360deg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      filter: drop-shadow(0 10px 16px rgba(22, 163, 74, 0.16));
-    }
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #ffffff 57%, transparent 58%),
+    conic-gradient(#1ca344 0deg var(--rank-deg), #edf3ee var(--rank-deg) 360deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 10px 16px rgba(22, 163, 74, 0.16));
+}
 
     .bs-ring-inner {
       text-align: center;
@@ -629,12 +573,6 @@ function injectBroncoSortStyles(doc) {
       letter-spacing: 2px;
       margin-bottom: 8px;
     }
-
-    .bs-rank-info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
 
     .bs-ring-inner strong {
       display: block;
@@ -829,9 +767,8 @@ function injectBroncoSortStyles(doc) {
       background: #35b66b;
       margin-right: 7px;
     }
-      /* CHANGING FONT SIZES (SAFE) */
 
-.bs-rank-label {
+    .bs-rank-label {
   font-size: 20px !important;
 }
 
@@ -859,10 +796,7 @@ function injectBroncoSortStyles(doc) {
 .bs-footer {
   font-size: 19px !important;
 }
-
-/* COMPRESS SPACING SO POPUP DOESN’T GROW */
-
-.bs-body {
+  .bs-body {
   padding: 18px 22px 14px !important;
 }
 
@@ -909,6 +843,5 @@ function injectBroncoSortStyles(doc) {
 }
   `;
 
-  doc.head.appendChild(style);
+  document.head.appendChild(style);
 }
-

@@ -84,12 +84,13 @@ export const findSchoolAndProfessors = async (req, res) => {
 
       try {
         if (cached) {
-          console.log("Redis cache hit:", profQuery);
           ratingsByName[profQuery] = cached;
-          if (cached.id) {
+
+          if (cached.id && (cached.numRatings ?? 0) > 0) {
             idsToFetch.push(`rank:prof:${cached.id}`);
             idToQueryMap[cached.id] = profQuery;
           }
+
           continue;
         }
 
@@ -137,8 +138,12 @@ export const findSchoolAndProfessors = async (req, res) => {
 
           continue;
         }
-        idsToFetch.push(`rank:prof:${exactMatch.id}`);
-        idToQueryMap[exactMatch.id] = profQuery;
+        const numRatings = exactMatch.num_ratings || 0;
+
+        if (numRatings > 0) {
+          idsToFetch.push(`rank:prof:${exactMatch.id}`);
+          idToQueryMap[exactMatch.id] = profQuery;
+        }
 
         ratingsByName[profQuery] = {
           found: true,

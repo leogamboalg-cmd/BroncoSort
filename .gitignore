@@ -24,3 +24,5 @@ backend/node_modules/
 
 # Local logs
 *.log
+
+waitlist_tracker

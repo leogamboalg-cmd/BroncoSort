@@ -1,0 +1,289 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Inter, Arial, sans-serif;
+  background: #0b0f19;
+  color: #f8fafc;
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.navbar {
+  width: 100%;
+  padding: 22px 8%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(11, 15, 25, 0.85);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.logo {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #facc15;
+}
+
+nav {
+  display: flex;
+  gap: 28px;
+}
+
+nav a {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+nav a:hover {
+  color: #facc15;
+}
+
+.hero {
+  min-height: 85vh;
+  padding: 90px 8%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.badge {
+  display: inline-block;
+  margin-bottom: 18px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.12);
+  color: #facc15;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.hero h1 {
+  font-size: clamp(3rem, 7vw, 5.8rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+  margin-bottom: 24px;
+}
+
+.subtitle {
+  max-width: 580px;
+  color: #cbd5e1;
+  font-size: 1.15rem;
+  margin-bottom: 32px;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 22px;
+  border-radius: 14px;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.btn.primary {
+  background: #facc15;
+  color: #111827;
+}
+
+.btn.primary:hover {
+  transform: translateY(-2px);
+  background: #fde047;
+}
+
+.btn.secondary {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+}
+
+.btn.secondary:hover {
+  border-color: #facc15;
+  color: #facc15;
+}
+
+.hero-card {
+  background: linear-gradient(145deg, #111827, #020617);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.45);
+}
+
+.browser-bar {
+  height: 48px;
+  background: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+}
+
+.browser-bar span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.mock-table {
+  padding: 24px;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 1.5fr 0.7fr 0.7fr;
+  padding: 18px;
+  border-radius: 16px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.table-row.header {
+  color: #94a3b8;
+  font-weight: 700;
+  background: transparent;
+}
+
+.rating {
+  font-weight: 800;
+}
+
+.rating.good {
+  color: #22c55e;
+}
+
+.rating.mid {
+  color: #facc15;
+}
+
+.section {
+  padding: 90px 8%;
+}
+
+.section h2,
+.download h2 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin-bottom: 36px;
+  letter-spacing: -0.04em;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+
+.feature-card {
+  padding: 28px;
+  border-radius: 22px;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.feature-card h3 {
+  margin-bottom: 12px;
+  color: #facc15;
+}
+
+.feature-card p {
+  color: #cbd5e1;
+}
+
+.how-section {
+  background: #020617;
+}
+
+.steps {
+  display: grid;
+  gap: 18px;
+  max-width: 800px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 18px;
+  background: #111827;
+}
+
+.step span {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #facc15;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.step p {
+  color: #e2e8f0;
+  font-size: 1.05rem;
+}
+
+.download {
+  margin: 80px 8%;
+  padding: 70px 30px;
+  text-align: center;
+  border-radius: 30px;
+  background: linear-gradient(
+    135deg,
+    rgba(250, 204, 21, 0.18),
+    rgba(59, 130, 246, 0.12)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.download p {
+  color: #cbd5e1;
+  margin-bottom: 28px;
+}
+
+footer {
+  padding: 30px 8%;
+  text-align: center;
+  color: #94a3b8;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 850px) {
+  nav {
+    display: none;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    padding-top: 60px;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-card {
+    order: -1;
+  }
+}

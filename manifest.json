@@ -15,7 +15,8 @@
                 "https://*.cpp.edu/*"
             ],
             "js": [
-                "content.js"
+                "content.js",
+                "scheduleBuilder.js"
             ],
             "css": [
                 "content.css"
