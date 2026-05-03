@@ -73,6 +73,8 @@ export const findSchoolAndProfessors = async (req, res) => {
     );
 
     const cachedResults = await redis.mget(...cacheKeys);
+    const idsToFetch = [];
+    const idToQueryMap = {};
 
     // 2. Search each professor within that school
     for (let i = 0; i < cleanedProfessors.length; i++) {
@@ -84,6 +86,10 @@ export const findSchoolAndProfessors = async (req, res) => {
         if (cached) {
           console.log("Redis cache hit:", profQuery);
           ratingsByName[profQuery] = cached;
+          if (cached.id) {
+            idsToFetch.push(`rank:prof:${cached.id}`);
+            idToQueryMap[cached.id] = profQuery;
+          }
           continue;
         }
 
@@ -118,6 +124,7 @@ export const findSchoolAndProfessors = async (req, res) => {
             profName: null,
             rating: 0,
             numRatings: 0,
+            ranking: null,
             id: null,
             difficulty: null,
             percentTakeAgain: null,
@@ -130,12 +137,15 @@ export const findSchoolAndProfessors = async (req, res) => {
 
           continue;
         }
+        idsToFetch.push(`rank:prof:${exactMatch.id}`);
+        idToQueryMap[exactMatch.id] = profQuery;
 
         ratingsByName[profQuery] = {
           found: true,
           profName: exactMatch.name,
           rating: exactMatch.overall_rating || 0,
           numRatings: exactMatch.num_ratings || 0,
+          ranking: null,
           id: exactMatch.id,
           difficulty: exactMatch.level_of_difficulty ?? null,
           percentTakeAgain: exactMatch.percent_take_again ?? null,
@@ -145,12 +155,15 @@ export const findSchoolAndProfessors = async (req, res) => {
         await redis.set(cacheKey, ratingsByName[profQuery], {
           ex: TTL,
         });
+
+
       } catch (err) {
         ratingsByName[profQuery] = {
           found: false,
           profName: null,
           rating: 0,
           numRatings: 0,
+          ranking: null,
           id: null,
           difficulty: null,
           percentTakeAgain: null,
@@ -159,6 +172,23 @@ export const findSchoolAndProfessors = async (req, res) => {
         };
       }
     }
+    const rankingResults = await redis.mget(...idsToFetch);
+    idsToFetch.forEach((key, index) => {
+      const id = key.split(":")[2];
+      const profQuery = idToQueryMap[id];
+
+      if (ratingsByName[profQuery]) {
+        const ranking = rankingResults[index] ?? null;
+
+        ratingsByName[profQuery].ranking = ranking;
+
+        const cacheKey = `rmp:${matchedSchool.id}:${normalizeName(profQuery)}`;
+
+        redis.set(cacheKey, ratingsByName[profQuery], {
+          ex: TTL,
+        });
+      }
+    });
 
     return res.json({
       schoolFound: matchedSchool.name,
