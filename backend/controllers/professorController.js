@@ -72,7 +72,8 @@ export const findSchoolAndProfessors = async (req, res) => {
       (prof) => `rmp:${matchedSchool.id}:${normalizeName(prof)}`,
     );
 
-    const cachedResults = await redis.mget(...cacheKeys);
+    const cachedResults =
+      cacheKeys.length > 0 ? await redis.mget(...cacheKeys) : [];
     const idsToFetch = [];
     const idToQueryMap = {};
 
@@ -160,8 +161,6 @@ export const findSchoolAndProfessors = async (req, res) => {
         await redis.set(cacheKey, ratingsByName[profQuery], {
           ex: TTL,
         });
-
-
       } catch (err) {
         ratingsByName[profQuery] = {
           found: false,
@@ -177,23 +176,26 @@ export const findSchoolAndProfessors = async (req, res) => {
         };
       }
     }
-    const rankingResults = await redis.mget(...idsToFetch);
-    idsToFetch.forEach((key, index) => {
-      const id = key.split(":")[2];
-      const profQuery = idToQueryMap[id];
+    if (idsToFetch.length > 0) {
+      const rankingResults = await redis.mget(...idsToFetch);
 
-      if (ratingsByName[profQuery]) {
-        const ranking = rankingResults[index] ?? null;
+      idsToFetch.forEach((key, index) => {
+        const id = key.split(":")[2];
+        const profQuery = idToQueryMap[id];
 
-        ratingsByName[profQuery].ranking = ranking;
+        if (ratingsByName[profQuery]) {
+          const ranking = rankingResults[index] ?? null;
 
-        const cacheKey = `rmp:${matchedSchool.id}:${normalizeName(profQuery)}`;
+          ratingsByName[profQuery].ranking = ranking;
 
-        redis.set(cacheKey, ratingsByName[profQuery], {
-          ex: TTL,
-        });
-      }
-    });
+          const cacheKey = `rmp:${matchedSchool.id}:${normalizeName(profQuery)}`;
+
+          redis.set(cacheKey, ratingsByName[profQuery], {
+            ex: TTL,
+          });
+        }
+      });
+    }
 
     return res.json({
       schoolFound: matchedSchool.name,
