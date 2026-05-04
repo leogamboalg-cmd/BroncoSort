@@ -2,365 +2,365 @@
 const USE_LOCAL = false;
 const SCALE = 0.6;
 const API_BASE = USE_LOCAL
-  ? "http://localhost:3000"
-  : "https://broncosort.onrender.com";
+    ? "http://localhost:3000"
+    : "https://broncosort.onrender.com";
 console.log("BroncoSort loaded:", window.location.href);
 async function wakeServer() {
-  try {
-    const response = await fetch(`${API_BASE}/api/health`, {
-      method: "GET",
-    });
+    try {
+        const response = await fetch(`${API_BASE}/api/health`, {
+            method: "GET",
+        });
 
-    const data = await response.json().catch(() => null);
+        const data = await response.json().catch(() => null);
 
-    if (!response.ok) {
-      throw new Error(
-        data?.error || `Request failed with status ${response.status}`,
-      );
+        if (!response.ok) {
+            throw new Error(
+                data?.error || `Request failed with status ${response.status}`,
+            );
+        }
+
+        console.log("Waking up server");
+    } catch (error) {
+        console.error("Could not wake up server");
     }
-
-    console.log("Waking up server");
-  } catch (error) {
-    console.error("Could not wake up server");
-  }
 }
 
 function getTargetDocument() {
-  const iframe =
-    document.querySelector('iframe[name="TargetContent"]') ||
-    document.querySelector("#ptifrmtgtframe");
+    const iframe =
+        document.querySelector('iframe[name="TargetContent"]') ||
+        document.querySelector("#ptifrmtgtframe");
 
-  if (!iframe) {
-    // console.error("TargetContent iframe not found");
-    return null;
-  }
+    if (!iframe) {
+        // console.error("TargetContent iframe not found");
+        return null;
+    }
 
-  const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
 
-  if (!innerDoc) {
-    console.error("Could not access iframe document");
-    return null;
-  }
+    if (!innerDoc) {
+        console.error("Could not access iframe document");
+        return null;
+    }
 
-  return innerDoc;
+    return innerDoc;
 }
 
 function cleanName(name) {
-  name = name.replace(/\s+/g, " ").trim();
+    name = name.replace(/\s+/g, " ").trim();
 
-  const parts = name.split(" ");
-  if (parts.length % 2 === 0) {
-    const half = parts.length / 2;
-    const first = parts.slice(0, half).join(" ");
-    const second = parts.slice(half).join(" ");
-    if (first === second) name = first;
-  }
+    const parts = name.split(" ");
+    if (parts.length % 2 === 0) {
+        const half = parts.length / 2;
+        const first = parts.slice(0, half).join(" ");
+        const second = parts.slice(half).join(" ");
+        if (first === second) name = first;
+    }
 
-  return name;
+    return name;
 }
 
 function getCourseTitle(courseBox) {
-  const allText = courseBox.innerText
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
+    const allText = courseBox.innerText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-  const match = allText.find((line) => /^[A-Z]{2,4}\s+\d{4}\s*-/.test(line));
-  if (match) return match;
+    const match = allText.find((line) => /^[A-Z]{2,4}\s+\d{4}\s*-/.test(line));
+    if (match) return match;
 
-  const fallback = allText.find((line) => /^[A-Z]{2,4}\s+\d{4}/.test(line));
-  return fallback || courseBox.id;
+    const fallback = allText.find((line) => /^[A-Z]{2,4}\s+\d{4}/.test(line));
+    return fallback || courseBox.id;
 }
 
 function collectCourses(doc) {
-  const courseBoxes = Array.from(
-    doc.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX2$"]'),
-  );
+    const courseBoxes = Array.from(
+        doc.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX2$"]'),
+    );
 
-  const courses = courseBoxes
-    .map((courseBox) => {
-      // only look inside THIS course box
-      const optionBlocks = Array.from(
-        courseBox.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX3$"]'),
-      ).filter((block) => {
-        const instrEl = block.querySelector('[id^="MTG_INSTR"]');
-        return !!instrEl;
-      });
+    const courses = courseBoxes
+        .map((courseBox) => {
+            // only look inside THIS course box
+            const optionBlocks = Array.from(
+                courseBox.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX3$"]'),
+            ).filter((block) => {
+                const instrEl = block.querySelector('[id^="MTG_INSTR"]');
+                return !!instrEl;
+            });
 
-      const options = optionBlocks
-        .map((block) => {
-          const instrEl = block.querySelector('[id^="MTG_INSTR"]');
-          const rawName = instrEl ? instrEl.innerText : "";
-          const name = rawName ? cleanName(rawName) : "";
+            const options = optionBlocks
+                .map((block) => {
+                    const instrEl = block.querySelector('[id^="MTG_INSTR"]');
+                    const rawName = instrEl ? instrEl.innerText : "";
+                    const name = rawName ? cleanName(rawName) : "";
 
-          return {
-            name,
-            block,
-            instrEl,
-          };
+                    return {
+                        name,
+                        block,
+                        instrEl,
+                    };
+                })
+                .filter((opt) => opt.name && isRealProfessorName(opt.name));
+
+            return {
+                courseBox,
+                courseTitle: getCourseTitle(courseBox),
+                options,
+            };
         })
-        .filter((opt) => opt.name && isRealProfessorName(opt.name));
+        .filter((course) => course.options.length > 0);
 
-      return {
-        courseBox,
-        courseTitle: getCourseTitle(courseBox),
-        options,
-      };
-    })
-    .filter((course) => course.options.length > 0);
-
-  return courses;
+    return courses;
 }
 
 function addOrUpdateRating(opt, ratingInfo, doc) {
-  const instrEl = opt.instrEl;
-  if (!instrEl) return;
+    const instrEl = opt.instrEl;
+    if (!instrEl) return;
 
-  instrEl.textContent = cleanName(instrEl.innerText);
+    instrEl.textContent = cleanName(instrEl.innerText);
 
-  const existing = opt.block.querySelector(".broncosort-rating");
-  if (existing) existing.remove();
+    const existing = opt.block.querySelector(".broncosort-rating");
+    if (existing) existing.remove();
 
-  const rating = ratingInfo?.rating;
-  const numRatings = ratingInfo?.numRatings;
-  const professorId = ratingInfo?.id;
+    const rating = ratingInfo?.rating;
+    const numRatings = ratingInfo?.numRatings;
+    const professorId = ratingInfo?.id;
 
-  const ratingEl = doc.createElement("div");
-  ratingEl.className = "broncosort-rating";
-  ratingEl.style.marginTop = "4px";
-  ratingEl.style.fontSize = "12px";
-  ratingEl.style.fontWeight = "600";
-  ratingEl.style.color = "#444";
+    const ratingEl = doc.createElement("div");
+    ratingEl.className = "broncosort-rating";
+    ratingEl.style.marginTop = "4px";
+    ratingEl.style.fontSize = "12px";
+    ratingEl.style.fontWeight = "600";
+    ratingEl.style.color = "#444";
 
-  const hasReviews = (ratingInfo?.numRatings ?? 0) > 0;
+    const hasReviews = (ratingInfo?.numRatings ?? 0) > 0;
 
-  const ratingText = hasReviews
-    ? `<span style="color:#1B5E20;font-size:30px;margin-right:3px;">★</span> ${rating}${numRatings ? ` (${numRatings})` : ""}`
-    : "No reviews";
+    const ratingText = hasReviews
+        ? `<span style="color:#1B5E20;font-size:30px;margin-right:3px;">★</span> ${rating}${numRatings ? ` (${numRatings})` : ""}`
+        : "No reviews";
 
-  if (professorId) {
-    const link = doc.createElement("a");
-    link.href = `https://www.ratemyprofessors.com/professor/${professorId}`;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.style.textDecoration = "none";
-    link.style.color = "#444";
-    link.innerHTML = ratingText;
+    if (professorId) {
+        const link = doc.createElement("a");
+        link.href = `https://www.ratemyprofessors.com/professor/${professorId}`;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.style.textDecoration = "none";
+        link.style.color = "#444";
+        link.innerHTML = ratingText;
 
-    ratingEl.appendChild(link);
-  } else {
-    ratingEl.innerHTML = ratingText;
-  }
+        ratingEl.appendChild(link);
+    } else {
+        ratingEl.innerHTML = ratingText;
+    }
 
-  instrEl.insertAdjacentElement("afterend", ratingEl);
+    instrEl.insertAdjacentElement("afterend", ratingEl);
 
-  let popupTimer;
+    let popupTimer;
 
-  ratingEl.style.cursor = "pointer";
-  ratingEl.title = "Professor details";
+    ratingEl.style.cursor = "pointer";
+    ratingEl.title = "Professor details";
 
-  ratingEl.addEventListener("mouseenter", (e) => {
-    clearTimeout(popupTimer);
+    ratingEl.addEventListener("mouseenter", (e) => {
+        clearTimeout(popupTimer);
 
-    showProfessorPopup(
-      {
-        name: opt.name,
-        ...ratingInfo,
-      },
-      doc,
-      e,
-    );
-  });
+        showProfessorPopup(
+            {
+                name: opt.name,
+                ...ratingInfo,
+            },
+            doc,
+            e,
+        );
+    });
 
-  ratingEl.addEventListener("mouseleave", () => {
-    popupTimer = setTimeout(() => {
-      const popup = doc.querySelector(".bs-prof-popup");
-      if (!popup || !popup.matches(":hover")) {
-        popup?.remove();
-      }
-    }, 200);
-  });
+    ratingEl.addEventListener("mouseleave", () => {
+        popupTimer = setTimeout(() => {
+            const popup = doc.querySelector(".bs-prof-popup");
+            if (!popup || !popup.matches(":hover")) {
+                popup?.remove();
+            }
+        }, 200);
+    });
 }
 
 async function fetchRatingsAndSortCourses() {
-  try {
-    const doc = getTargetDocument();
-    if (!doc) return;
-    injectBroncoSortStyles(doc);
+    try {
+        const doc = getTargetDocument();
+        if (!doc) return;
+        injectBroncoSortStyles(doc);
 
-    const courses = collectCourses(doc);
+        const courses = collectCourses(doc);
 
-    console.log(
-      "Courses found:",
-      courses.map((c) => ({
-        title: c.courseTitle,
-        names: c.options.map((o) => o.name),
-      })),
-    );
+        console.log(
+            "Courses found:",
+            courses.map((c) => ({
+                title: c.courseTitle,
+                names: c.options.map((o) => o.name),
+            })),
+        );
 
-    const uniqueProfessorNames = [
-      ...new Set(
-        courses.flatMap((course) => course.options.map((opt) => opt.name)),
-      ),
-    ].sort();
+        const uniqueProfessorNames = [
+            ...new Set(
+                courses.flatMap((course) => course.options.map((opt) => opt.name)),
+            ),
+        ].sort();
 
-    if (!uniqueProfessorNames.length) {
-      console.log("No professors found.");
-      return;
+        if (!uniqueProfessorNames.length) {
+            console.log("No professors found.");
+            return;
+        }
+
+        const payload = {
+            school: "Cal Poly Pomona",
+            professors: uniqueProfessorNames,
+        };
+
+        console.log("Sending to backend:", payload);
+
+        const res = await fetch(`${API_BASE}/api/professor/ratings`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            console.error("Backend error:", res.status, text);
+            throw new Error(`Request failed: ${res.status}`);
+        }
+
+        const data = await res.json();
+        const ratingsByName = data.ratingsByName || {};
+
+        console.log("Received ratings:", ratingsByName);
+
+        courses.forEach((course) => {
+            course.options.sort((a, b) => {
+                const rA = ratingsByName[a.name]?.rating || 0;
+                const rB = ratingsByName[b.name]?.rating || 0;
+                return rB - rA;
+            });
+
+            // only move option blocks inside THIS course box
+            const parent = course.options[0]?.block?.parentElement;
+            if (!parent) return;
+
+            course.options.forEach((opt) => {
+                addOrUpdateRating(opt, ratingsByName[opt.name], doc);
+            });
+
+            course.options.forEach((opt) => {
+                parent.appendChild(opt.block);
+            });
+
+            console.log(
+                "Sorted within course only:",
+                course.courseTitle,
+                course.options.map(
+                    (opt) => `${opt.name} (${ratingsByName[opt.name]?.rating || 0})`,
+                ),
+            );
+        });
+    } catch (err) {
+        console.error("Error:", err);
     }
-
-    const payload = {
-      school: "Cal Poly Pomona",
-      professors: uniqueProfessorNames,
-    };
-
-    console.log("Sending to backend:", payload);
-
-    const res = await fetch(`${API_BASE}/api/professor/ratings`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Backend error:", res.status, text);
-      throw new Error(`Request failed: ${res.status}`);
-    }
-
-    const data = await res.json();
-    const ratingsByName = data.ratingsByName || {};
-
-    console.log("Received ratings:", ratingsByName);
-
-    courses.forEach((course) => {
-      course.options.sort((a, b) => {
-        const rA = ratingsByName[a.name]?.rating || 0;
-        const rB = ratingsByName[b.name]?.rating || 0;
-        return rB - rA;
-      });
-
-      // only move option blocks inside THIS course box
-      const parent = course.options[0]?.block?.parentElement;
-      if (!parent) return;
-
-      course.options.forEach((opt) => {
-        addOrUpdateRating(opt, ratingsByName[opt.name], doc);
-      });
-
-      course.options.forEach((opt) => {
-        parent.appendChild(opt.block);
-      });
-
-      console.log(
-        "Sorted within course only:",
-        course.courseTitle,
-        course.options.map(
-          (opt) => `${opt.name} (${ratingsByName[opt.name]?.rating || 0})`,
-        ),
-      );
-    });
-  } catch (err) {
-    console.error("Error:", err);
-  }
 }
 
 function isRealProfessorName(name) {
-  const cleaned = cleanName(name).toLowerCase();
+    const cleaned = cleanName(name).toLowerCase();
 
-  return ![
-    "to be announced",
-    "tba",
-    "staff",
-    "instructor tba",
-    "unknown",
-  ].includes(cleaned);
+    return ![
+        "to be announced",
+        "tba",
+        "staff",
+        "instructor tba",
+        "unknown",
+    ].includes(cleaned);
 }
 
 let broncoSortSignature = "";
 
 function getCurrentSignature(doc) {
-  const names = Array.from(doc.querySelectorAll('[id^="MTG_INSTR"]'))
-    .map((el) => cleanName(el.innerText || ""))
-    .filter(Boolean);
+    const names = Array.from(doc.querySelectorAll('[id^="MTG_INSTR"]'))
+        .map((el) => cleanName(el.innerText || ""))
+        .filter(Boolean);
 
-  return names.join("|");
+    return names.join("|");
 }
 
 function startWhenReady() {
-  setInterval(() => {
-    const doc = getTargetDocument();
-    if (!doc) return;
+    setInterval(() => {
+        const doc = getTargetDocument();
+        if (!doc) return;
 
-    const count = doc.querySelectorAll('[id^="MTG_INSTR"]').length;
-    if (count === 0) return;
+        const count = doc.querySelectorAll('[id^="MTG_INSTR"]').length;
+        if (count === 0) return;
 
-    const newSignature = getCurrentSignature(doc);
-    if (!newSignature) return;
+        const newSignature = getCurrentSignature(doc);
+        if (!newSignature) return;
 
-    if (newSignature === broncoSortSignature) return;
+        if (newSignature === broncoSortSignature) return;
 
-    broncoSortSignature = newSignature;
-    console.log("BroncoSort running...");
-    fetchRatingsAndSortCourses();
-  }, 2000);
+        broncoSortSignature = newSignature;
+        console.log("BroncoSort running...");
+        fetchRatingsAndSortCourses();
+    }, 2000);
 }
 
 wakeServer();
 
 if (document.readyState === "complete") {
-  startWhenReady();
-} else {
-  window.addEventListener("load", () => {
     startWhenReady();
-  });
+} else {
+    window.addEventListener("load", () => {
+        startWhenReady();
+    });
 }
 
 function showProfessorPopup(prof, doc, e) {
-  doc.querySelector(".bs-prof-popup")?.remove();
+    doc.querySelector(".bs-prof-popup")?.remove();
 
-  const popup = doc.createElement("div");
-  popup.className = "bs-prof-popup";
+    const popup = doc.createElement("div");
+    popup.className = "bs-prof-popup";
 
-  const isFound = prof.found !== false;
-  const reviews = prof.numRatings ?? 0;
-  const hasReviews = isFound && reviews > 0;
+    const isFound = prof.found !== false;
+    const reviews = prof.numRatings ?? 0;
+    const hasReviews = isFound && reviews > 0;
 
-  const rating = hasReviews ? prof.rating : "N/A";
-  const difficulty = hasReviews ? prof.difficulty : "N/A";
+    const rating = hasReviews ? prof.rating : "N/A";
+    const difficulty = hasReviews ? prof.difficulty : "N/A";
 
-  const takeAgain =
-    hasReviews && prof.percentTakeAgain != null && prof.percentTakeAgain >= 0
-      ? `${Math.round(prof.percentTakeAgain)}%`
-      : "N/A";
+    const takeAgain =
+        hasReviews && prof.percentTakeAgain != null && prof.percentTakeAgain >= 0
+            ? `${Math.round(prof.percentTakeAgain)}%`
+            : "N/A";
 
-  const ranking = hasReviews ? prof.ranking : null;
-  const topPercent = ranking?.topPercent ?? null;
-  const departmentRank = ranking?.rank ?? null;
-  const departmentTotal = ranking?.departmentTotal ?? null;
+    const ranking = hasReviews ? prof.ranking : null;
+    const topPercent = ranking?.topPercent ?? null;
+    const departmentRank = ranking?.rank ?? null;
+    const departmentTotal = ranking?.departmentTotal ?? null;
 
-  const ringDegrees =
-    topPercent != null
-      ? Math.min(((100 - topPercent) / 100) * 360, 360)
-      : 88;
+    const ringDegrees =
+        topPercent != null
+            ? Math.min(((100 - topPercent) / 100) * 360, 360)
+            : 88;
 
-  const rankTitle =
-    topPercent != null ? `Top ${topPercent}%` : "Coming Soon";
+    const rankTitle =
+        topPercent != null ? `Top ${topPercent}%` : "Coming Soon";
 
-  const rankSub =
-    departmentRank != null && departmentTotal != null
-      ? `Ranked #${departmentRank} of ${departmentTotal} in department`
-      : "Needs department comparison data";
+    const rankSub =
+        departmentRank != null && departmentTotal != null
+            ? `Ranked #${departmentRank} of ${departmentTotal} in department`
+            : "Needs department comparison data";
 
-  const initials = (prof.name || "?")
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("");
+    const initials = (prof.name || "?")
+        .split(" ")
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join("");
 
-  popup.innerHTML = `
+    popup.innerHTML = `
     <div class="bs-top">
       <div class="bs-avatar">${initials}</div>
 
@@ -414,11 +414,11 @@ function showProfessorPopup(prof, doc, e) {
       <div class="bs-review-row">
         <div class="bs-stars">★ ★ ★ ★ <span>★</span></div>
         <div>${!isFound
-      ? "Not on RateMyProfessors"
-      : hasReviews
-        ? `Based on <strong>${reviews}</strong> student reviews`
-        : "No student reviews yet"
-    }</div>
+            ? "Not on RateMyProfessors"
+            : hasReviews
+                ? `Based on <strong>${reviews}</strong> student reviews`
+                : "No student reviews yet"
+        }</div>
       </div>
 
       <a class="bs-btn" target="_blank">
@@ -433,46 +433,46 @@ function showProfessorPopup(prof, doc, e) {
     </div>
   `;
 
-  const link = popup.querySelector(".bs-btn");
-  if (prof.id) {
-    link.href = `https://www.ratemyprofessors.com/professor/${prof.id}`;
-  } else {
-    link.remove();
-  }
+    const link = popup.querySelector(".bs-btn");
+    if (prof.id) {
+        link.href = `https://www.ratemyprofessors.com/professor/${prof.id}`;
+    } else {
+        link.remove();
+    }
 
-  doc.body.appendChild(popup);
+    doc.body.appendChild(popup);
 
-  popup.style.position = "fixed";
+    popup.style.position = "fixed";
 
-  const r = e.currentTarget.getBoundingClientRect();
+    const r = e.currentTarget.getBoundingClientRect();
 
-  const popupHeight = popup.offsetHeight * SCALE;
-  const popupWidth = popup.offsetWidth * SCALE;
-  const win = doc.defaultView;
+    const popupHeight = popup.offsetHeight * SCALE;
+    const popupWidth = popup.offsetWidth * SCALE;
+    const win = doc.defaultView;
 
-  const spaceBelow = win.innerHeight - r.bottom;
+    const spaceBelow = win.innerHeight - r.bottom;
 
-  const top =
-    spaceBelow < popupHeight + 16
-      ? r.top - popupHeight - 8
-      : r.bottom + 8;
+    const top =
+        spaceBelow < popupHeight + 16
+            ? r.top - popupHeight - 8
+            : r.bottom + 8;
 
-  const left = Math.min(r.left, win.innerWidth - popupWidth - 12);
+    const left = Math.min(r.left, win.innerWidth - popupWidth - 12);
 
-  popup.style.left = `${Math.max(12, left)}px`;
-  popup.style.top = `${Math.max(12, top)}px`;
+    popup.style.left = `${Math.max(12, left)}px`;
+    popup.style.top = `${Math.max(12, top)}px`;
 
-  popup.addEventListener("mouseleave", () => popup.remove());
+    popup.addEventListener("mouseleave", () => popup.remove());
 }
 
 function injectBroncoSortStyles(doc) {
-  const existing = doc.querySelector("#broncosort-popup-styles");
-  if (existing) existing.remove();
+    const existing = doc.querySelector("#broncosort-popup-styles");
+    if (existing) existing.remove();
 
-  const style = doc.createElement("style");
-  style.id = "broncosort-popup-styles";
+    const style = doc.createElement("style");
+    style.id = "broncosort-popup-styles";
 
-  style.textContent = `
+    style.textContent = `
     .bs-prof-popup,
     .bs-prof-popup * {
       box-sizing: border-box;
@@ -904,6 +904,6 @@ function injectBroncoSortStyles(doc) {
 }
   `;
 
-  doc.head.appendChild(style);
+    doc.head.appendChild(style);
 }
 
