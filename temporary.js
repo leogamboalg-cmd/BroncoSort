@@ -1,441 +1,334 @@
-const USE_LOCAL = false;
+async function collectScheduleContext() {
+  function getDocs(doc = document, docs = []) {
+    docs.push(doc);
 
-const API_BASE = USE_LOCAL
-  ? "http://localhost:3000"
-  : "https://broncosort.onrender.com";
-console.log("BroncoSort loaded:", window.location.href);
-async function wakeServer() {
-  try {
-    const response = await fetch(`${API_BASE}/api/health`, {
-      method: "GET",
-    });
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      throw new Error(
-        data?.error || `Request failed with status ${response.status}`,
-      );
+    for (const frame of doc.querySelectorAll("iframe")) {
+      try {
+        const frameDoc = frame.contentDocument || frame.contentWindow.document;
+        if (frameDoc) getDocs(frameDoc, docs);
+      } catch { }
     }
 
-    console.log("Waking up server");
-  } catch (error) {
-    console.error("Could not wake up server");
-  }
-}
-
-function getTargetDocument() {
-  const iframe =
-    document.querySelector('iframe[name="TargetContent"]') ||
-    document.querySelector("#ptifrmtgtframe");
-
-  if (!iframe) {
-    // console.error("TargetContent iframe not found");
-    return null;
+    return docs;
   }
 
-  const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
-
-  if (!innerDoc) {
-    console.error("Could not access iframe document");
-    return null;
+  function getHeaderTexts(table) {
+    return [...table.querySelectorAll("th")]
+      .map(th => th.textContent.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
   }
 
-  return innerDoc;
-}
+  function hasSemanticScheduleHeaders(table) {
+    const headers = getHeaderTexts(table).map(h => h.toLowerCase());
 
-function cleanName(name) {
-  name = name.replace(/\s+/g, " ").trim();
+    const hasInstructor = headers.some(h =>
+      h.includes("instructor") ||
+      h.includes("professor") ||
+      h.includes("faculty") ||
+      h.includes("teacher")
+    );
 
-  const parts = name.split(" ");
-  if (parts.length % 2 === 0) {
-    const half = parts.length / 2;
-    const first = parts.slice(0, half).join(" ");
-    const second = parts.slice(half).join(" ");
-    if (first === second) name = first;
+    const hasSection = headers.some(h =>
+      h.includes("section") ||
+      h.includes("class")
+    );
+
+    const hasTimeOrRoom = headers.some(h =>
+      h.includes("day") ||
+      h.includes("time") ||
+      h.includes("meeting") ||
+      h.includes("room") ||
+      h.includes("location")
+    );
+
+    return hasInstructor && hasSection && hasTimeOrRoom;
   }
 
-  return name;
-}
+  function hasFallbackSchedulePattern(table) {
+    const id = table.id || "";
+    const text = table.innerText.toLowerCase();
 
-function getCourseTitle(courseBox) {
-  const allText = courseBox.innerText
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
+    return (
+      id.toLowerCase().includes("schedule") ||
+      id.toLowerCase().includes("meeting") ||
+      id.toLowerCase().includes("class") ||
+      table.querySelector('[id*="INSTR"], [name*="INSTR"]') ||
+      (
+        text.includes("instructor") &&
+        text.includes("section") &&
+        (text.includes("day") || text.includes("time") || text.includes("room"))
+      )
+    );
+  }
 
-  const match = allText.find((line) => /^[A-Z]{2,4}\s+\d{4}\s*-/.test(line));
-  if (match) return match;
+  function isScheduleTable(table) {
+    return hasSemanticScheduleHeaders(table) || hasFallbackSchedulePattern(table);
+  }
 
-  const fallback = allText.find((line) => /^[A-Z]{2,4}\s+\d{4}/.test(line));
-  return fallback || courseBox.id;
-}
+  function findBestTable() {
+    const tables = getDocs()
+      .flatMap(doc => [...doc.querySelectorAll("table")])
+      .filter(isScheduleTable)
+      .sort((a, b) => a.outerHTML.length - b.outerHTML.length);
 
-function collectCourses(doc) {
-  const courseBoxes = Array.from(
-    doc.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX2$"]'),
-  );
+    console.table(tables.slice(0, 10).map((table, index) => ({
+      index,
+      id: table.id,
+      size: table.outerHTML.length,
+      rows: table.querySelectorAll("tr").length,
+      cells: table.querySelectorAll("td").length,
+      headers: getHeaderTexts(table).join(" | "),
+      semantic: hasSemanticScheduleHeaders(table),
+      fallback: hasFallbackSchedulePattern(table)
+    })));
 
-  const courses = courseBoxes
-    .map((courseBox) => {
-      // only look inside THIS course box
-      const optionBlocks = Array.from(
-        courseBox.querySelectorAll('[id^="win0divSSR_CLSRSLT_WRK_GROUPBOX3$"]'),
-      ).filter((block) => {
-        const instrEl = block.querySelector('[id^="MTG_INSTR"]');
-        return !!instrEl;
+    return tables[0] || null;
+  }
+
+  function scheduleTableCount(el) {
+    return [...el.querySelectorAll("table")].filter(isScheduleTable).length;
+  }
+
+  function findMovableBlock(table) {
+    let current = table;
+    let bestMatch = table;
+
+    while (current && current !== document.body) {
+      const parent = current.parentElement;
+
+      if (!parent) {
+        break;
+      }
+
+      const siblings = [...parent.children];
+
+      const matchingSiblings = siblings.filter(sibling => {
+        return scheduleTableCount(sibling) === 1;
       });
 
-      const options = optionBlocks
-        .map((block) => {
-          const instrEl = block.querySelector('[id^="MTG_INSTR"]');
-          const rawName = instrEl ? instrEl.innerText : "";
-          const name = rawName ? cleanName(rawName) : "";
+      if (matchingSiblings.length >= 2) {
+        bestMatch = current;
+      }
 
-          return {
-            name,
-            block,
-            instrEl,
-          };
-        })
-        .filter((opt) => opt.name && isRealProfessorName(opt.name));
+      current = parent;
+    }
 
-      return {
-        courseBox,
-        courseTitle: getCourseTitle(courseBox),
-        options,
-      };
-    })
-    .filter((course) => course.options.length > 0);
-
-  return courses;
-}
-
-function addOrUpdateRating(opt, ratingInfo, doc) {
-  const instrEl = opt.instrEl;
-  if (!instrEl) return;
-
-  instrEl.textContent = cleanName(instrEl.innerText);
-
-  const existing = opt.block.querySelector(".broncosort-rating");
-  if (existing) existing.remove();
-
-  const rating = ratingInfo?.rating;
-  const numRatings = ratingInfo?.numRatings;
-  const professorId = ratingInfo?.id;
-
-  const ratingEl = doc.createElement("div");
-  ratingEl.className = "broncosort-rating";
-  ratingEl.style.marginTop = "4px";
-  ratingEl.style.fontSize = "12px";
-  ratingEl.style.fontWeight = "600";
-  ratingEl.style.color = "#444";
-
-  const ratingText =
-    rating != null
-      ? `⭐ ${rating}${numRatings ? ` (${numRatings})` : ""}`
-      : "No rating";
-
-  if (professorId) {
-    const link = doc.createElement("a");
-    link.href = `https://www.ratemyprofessors.com/professor/${professorId}`;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.style.textDecoration = "none";
-    link.style.color = "#444";
-    link.textContent = ratingText;
-    ratingEl.appendChild(link);
-  } else {
-    ratingEl.textContent = ratingText;
+    return bestMatch;
   }
 
-  instrEl.insertAdjacentElement("afterend", ratingEl);
+  function findGroupContainer(movableBlock) {
+    const parent = movableBlock.parentElement;
 
-  let popupTimer;
+    if (!parent) {
+      return {
+        container: null,
+        siblingBlocks: [movableBlock]
+      };
+    }
 
-  ratingEl.style.cursor = "pointer";
-  ratingEl.title = "Professor details";
+    const siblingBlocks = [...parent.children].filter(sibling => {
+      return scheduleTableCount(sibling) === 1;
+    });
 
-  ratingEl.addEventListener("mouseenter", (e) => {
-    clearTimeout(popupTimer);
+    return {
+      container: parent,
+      siblingBlocks
+    };
+  }
 
-    showProfessorPopup(
-      {
-        name: opt.name,
-        ...ratingInfo,
-      },
-      doc,
-      e,
-    );
-  });
+  function getSharedIdPrefix(elements) {
+    const ids = elements
+      .map(el => el.id)
+      .filter(Boolean);
 
-  ratingEl.addEventListener("mouseleave", () => {
-    popupTimer = setTimeout(() => {
-      const popup = doc.querySelector(".bs-prof-popup");
-      if (!popup || !popup.matches(":hover")) {
-        popup?.remove();
+    if (ids.length < 2) return "";
+
+    let prefix = ids[0];
+
+    for (const id of ids.slice(1)) {
+      while (!id.startsWith(prefix) && prefix.length > 0) {
+        prefix = prefix.slice(0, -1);
       }
-    }, 200);
-  });
-}
+    }
 
-async function fetchRatingsAndSortCourses() {
+    return prefix.replace(/\$\d*$/g, "");
+  }
+
+  function buildSelectorHint(el, siblings = []) {
+    if (!el) return "";
+
+    const sharedPrefix = getSharedIdPrefix(siblings);
+
+    if (sharedPrefix) {
+      return `[id^="${sharedPrefix}"]`;
+    }
+
+    if (el.id) {
+      const prefix = el.id.replace(/\$\d+.*/g, "");
+      return `[id^="${prefix}"]`;
+    }
+
+    if (el.classList.length > 0) {
+      return "." + [...el.classList].join(".");
+    }
+
+    return el.tagName.toLowerCase();
+  }
+
+  function sanitizeElement(element, options = {}) {
+    if (!element) return "";
+
+    const clone = element.cloneNode(true);
+
+    clone.querySelectorAll(
+      "script, style, iframe, input, button, select, option, textarea, link, svg, img, .broncosort-rating"
+    ).forEach(el => el.remove());
+
+    clone.querySelectorAll("a").forEach(a => {
+      a.removeAttribute("href");
+      a.removeAttribute("onclick");
+      a.removeAttribute("target");
+      a.removeAttribute("rel");
+    });
+
+    clone.querySelectorAll("*").forEach(el => {
+      const tag = el.tagName.toLowerCase();
+
+      if (tag === "th") {
+        el.textContent = el.textContent.replace(/\s+/g, " ").trim();
+      } else if (tag === "td") {
+        el.textContent = "[cell]";
+      } else {
+        el.childNodes.forEach(node => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            node.textContent = "";
+          }
+        });
+      }
+
+      const allowed = [
+        "id",
+        "name",
+        "class",
+        "role",
+        "data-role",
+        "aria-label",
+        "scope",
+        "colspan",
+        "rowspan"
+      ];
+
+      [...el.attributes].forEach(attr => {
+        if (!allowed.includes(attr.name.toLowerCase())) {
+          el.removeAttribute(attr.name);
+        }
+      });
+    });
+
+    const html = clone.outerHTML;
+
+    if (options.maxLength && html.length > options.maxLength) {
+      return html.slice(0, options.maxLength);
+    }
+
+    return html;
+  }
+
+  function getSignature(el) {
+    if (!el) return "";
+
+    const tag = el.tagName.toLowerCase();
+
+    if (el.id) {
+      return `${tag}#${el.id}`;
+    }
+
+    if (el.classList.length > 0) {
+      return `${tag}.${[...el.classList].join(".")}`;
+    }
+
+    return tag;
+  }
+
+  const table = findBestTable();
+
+  if (!table) {
+    console.error("No schedule table found.");
+    return;
+  }
+
+  const movableBlock = findMovableBlock(table);
+  const groupInfo = findGroupContainer(movableBlock);
+
+  const siblingBlocks = groupInfo.siblingBlocks || [];
+
+  const packageData = {
+    hostname: location.hostname,
+    pathname: location.pathname,
+    capturedAt: new Date().toISOString(),
+
+    detection: {
+      semantic: hasSemanticScheduleHeaders(table),
+      fallback: hasFallbackSchedulePattern(table),
+      headers: getHeaderTexts(table)
+    },
+
+    selectorHints: {
+      tableSelector: buildSelectorHint(table),
+      rowSelector: "tbody tr",
+      movableBlockSelector: buildSelectorHint(movableBlock, siblingBlocks),
+      groupContainerSelector: buildSelectorHint(groupInfo.container)
+    },
+
+    counts: {
+      tableSize: table.outerHTML.length,
+      movableBlockSize: movableBlock.outerHTML.length,
+      groupContainerSize: groupInfo.container?.outerHTML.length || 0,
+      siblingCount: siblingBlocks.length
+    },
+
+    skeletons: {
+      table: sanitizeElement(table, { maxLength: 15000 }),
+      movableBlock: sanitizeElement(movableBlock, { maxLength: 25000 }),
+      groupContainerPreview: sanitizeElement(groupInfo.container, { maxLength: 35000 })
+    },
+
+    siblingSignatures: siblingBlocks.slice(0, 20).map(getSignature)
+  };
+
+  console.log("Collected schedule context:", packageData);
+
+  const payload = JSON.stringify(packageData);
+
+  if (payload.length > 90000) {
+    console.error("Payload too large. Not sending.", payload.length);
+    return;
+  }
+
   try {
-    const doc = getTargetDocument();
-    if (!doc) return;
-    injectBroncoSortStyles(doc); // ✅ ADD THIS
+    const response = await fetch("http://localhost:3000/api/collect/collectData", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: payload
+    });
 
-    const courses = collectCourses(doc);
+    const text = await response.text();
 
-    console.log(
-      "Courses found:",
-      courses.map((c) => ({
-        title: c.courseTitle,
-        names: c.options.map((o) => o.name),
-      })),
-    );
-
-    const uniqueProfessorNames = [
-      ...new Set(
-        courses.flatMap((course) => course.options.map((opt) => opt.name)),
-      ),
-    ].sort();
-
-    if (!uniqueProfessorNames.length) {
-      console.log("No professors found.");
+    if (!response.ok) {
+      console.error("Backend error:", response.status, text);
       return;
     }
 
-    const payload = {
-      school: "Cal Poly Pomona",
-      professors: uniqueProfessorNames,
-    };
-
-    console.log("Sending to backend:", payload);
-
-    const res = await fetch(`${API_BASE}/api/professor/ratings`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Backend error:", res.status, text);
-      throw new Error(`Request failed: ${res.status}`);
+    try {
+      console.log("Success:", JSON.parse(text));
+    } catch {
+      console.log("Success:", text);
     }
-
-    const data = await res.json();
-    const ratingsByName = data.ratingsByName || {};
-
-    console.log("Received ratings:", ratingsByName);
-
-    courses.forEach((course) => {
-      course.options.sort((a, b) => {
-        const rA = ratingsByName[a.name]?.rating || 0;
-        const rB = ratingsByName[b.name]?.rating || 0;
-        return rB - rA;
-      });
-
-      // only move option blocks inside THIS course box
-      const parent = course.options[0]?.block?.parentElement;
-      if (!parent) return;
-
-      course.options.forEach((opt) => {
-        addOrUpdateRating(opt, ratingsByName[opt.name], doc);
-      });
-
-      course.options.forEach((opt) => {
-        parent.appendChild(opt.block);
-      });
-
-      console.log(
-        "Sorted within course only:",
-        course.courseTitle,
-        course.options.map(
-          (opt) => `${opt.name} (${ratingsByName[opt.name]?.rating || 0})`,
-        ),
-      );
-    });
   } catch (err) {
-    console.error("Error:", err);
+    console.error("Fetch failed:", err);
   }
 }
 
-function isRealProfessorName(name) {
-  const cleaned = cleanName(name).toLowerCase();
-
-  return ![
-    "to be announced",
-    "tba",
-    "staff",
-    "instructor tba",
-    "unknown",
-  ].includes(cleaned);
-}
-
-let broncoSortSignature = "";
-
-function getCurrentSignature(doc) {
-  const names = Array.from(doc.querySelectorAll('[id^="MTG_INSTR"]'))
-    .map((el) => cleanName(el.innerText || ""))
-    .filter(Boolean);
-
-  return names.join("|");
-}
-
-function startWhenReady() {
-  setInterval(() => {
-    const doc = getTargetDocument();
-    if (!doc) return;
-
-    const count = doc.querySelectorAll('[id^="MTG_INSTR"]').length;
-    if (count === 0) return;
-
-    const newSignature = getCurrentSignature(doc);
-    if (!newSignature) return;
-
-    if (newSignature === broncoSortSignature) return;
-
-    broncoSortSignature = newSignature;
-    console.log("BroncoSort running...");
-    fetchRatingsAndSortCourses();
-  }, 2000);
-}
-
-wakeServer();
-
-if (document.readyState === "complete") {
-  startWhenReady();
-} else {
-  window.addEventListener("load", () => {
-    startWhenReady();
-  });
-}
-
-function showProfessorPopup(prof, doc, e) {
-  doc.querySelector(".bs-prof-popup")?.remove();
-
-  const popup = doc.createElement("div");
-  popup.className = "bs-prof-popup";
-
-  const rating = prof.rating ?? "N/A";
-  const reviews = prof.numRatings ?? 0;
-  const difficulty = prof.difficulty ?? "N/A";
-  const takeAgain =
-    prof.percentTakeAgain != null
-      ? `${Math.round(prof.percentTakeAgain)}%`
-      : "N/A";
-
-  popup.innerHTML = `
-    <div class="bs-popup-title"></div>
-    <div class="bs-popup-subtitle"></div>
-
-    <div class="bs-popup-stats">
-      <div><strong>${rating}</strong><span>Rating</span></div>
-      <div><strong>${reviews}</strong><span>Reviews</span></div>
-      <div><strong>${difficulty}</strong><span>Difficulty</span></div>
-      <div><strong>${takeAgain}</strong><span>Take Again</span></div>
-    </div>
-
-    <a class="bs-popup-link" target="_blank">View on RMP</a>
-  `;
-
-  popup.querySelector(".bs-popup-title").textContent =
-    prof.profName || prof.name;
-
-  popup.querySelector(".bs-popup-subtitle").textContent =
-    prof.department || "Professor Snapshot";
-
-  const link = popup.querySelector(".bs-popup-link");
-
-  if (prof.id) {
-    link.href = `https://www.ratemyprofessors.com/professor/${prof.id}`;
-  } else {
-    link.remove();
-  }
-
-  popup.style.position = "absolute";
-
-  e.currentTarget.style.position = "relative";
-  e.currentTarget.appendChild(popup);
-
-  popup.style.position = "absolute";
-  popup.style.left = "0px";
-  popup.style.top = "22px";
-}
-
-function injectBroncoSortStyles(doc) {
-  if (doc.querySelector("#broncosort-popup-styles")) return;
-
-  const style = doc.createElement("style");
-  style.id = "broncosort-popup-styles";
-
-  style.textContent = `
-    .bs-prof-popup {
-      z-index: 999999;
-      width: 260px;
-      background: #ffffff;
-      border: 1px solid #d9e2ec;
-      border-radius: 14px;
-      padding: 14px;
-      box-shadow: 0 14px 35px rgba(15, 23, 42, 0.22);
-      font-family: Arial, sans-serif;
-      color: #172033;
-    }
-
-    .bs-popup-title {
-      font-size: 16px;
-      font-weight: 800;
-      color: #0f766e;
-      margin-bottom: 2px;
-    }
-
-    .bs-popup-subtitle {
-      font-size: 12px;
-      color: #64748b;
-      margin-bottom: 12px;
-    }
-
-    .bs-popup-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .bs-popup-stats div {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 9px;
-    }
-
-    .bs-popup-stats strong {
-      display: block;
-      font-size: 16px;
-      color: #111827;
-    }
-
-    .bs-popup-stats span {
-      font-size: 11px;
-      color: #64748b;
-    }
-
-    .bs-popup-link {
-      display: block;
-      margin-top: 12px;
-      padding: 9px;
-      border-radius: 10px;
-      background: #0f766e;
-      color: white !important;
-      text-align: center;
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 12px;
-    }
-  `;
-
-  doc.head.appendChild(style);
-}
+collectScheduleContext();

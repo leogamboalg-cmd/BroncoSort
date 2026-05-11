@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>BroncoSort Test Page</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 20px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .course-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .prof {
+            padding: 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rating {
+            color: #1B5E20;
+            font-weight: bold;
+        }
+
+        button {
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #1B5E20;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>BroncoSort Local Test</h2>
+
+    <button onclick="sortSections()">Sort by Rating</button>
+
+    <div id="test-root">
+
+        <div id="win0divSSR_CLSRSLT_WRK_GROUPBOX2$0" class="section">
+            <div class="course-title">CS 1260 - Python for Beginners</div>
+            <div class="prof">
+                <span id="MTG_INSTR$0">John Korah</span>
+            </div>
+        </div>
+
+        <div id="win0divSSR_CLSRSLT_WRK_GROUPBOX2$2" class="section">
+            <div class="course-title">CS 1300 - Discrete Structures</div>
+            <div class="prof">
+                <span id="MTG_INSTR$2">Antoine Si</span>
+            </div>
+            <div class="prof">
+                <span id="MTG_INSTR$3">Qichao Dong</span>
+            </div>
+            <div class="prof">
+                <span id="MTG_INSTR$4">Edwin Rodríguez</span>
+            </div>
+        </div>
+
+        <div id="win0divSSR_CLSRSLT_WRK_GROUPBOX2$3" class="section">
+            <div class="course-title">CS 1400 - Intro to Programming</div>
+            <div class="prof">
+                <span id="MTG_INSTR$5">Ben Steichen</span>
+            </div>
+            <div class="prof">
+                <span id="MTG_INSTR$6">Brianna Posadas</span>
+            </div>
+            <div class="prof">
+                <span id="MTG_INSTR$8">Thanh Nguyen</span>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const ratings = {
+            "John Korah": 4.2,
+            "Antoine Si": 3.5,
+            "Qichao Dong": 4.8,
+            "Edwin Rodríguez": 4.1,
+            "Ben Steichen": 3.9,
+            "Brianna Posadas": 4.6,
+            "Thanh Nguyen": 3.2
+        };
+
+        // add stars
+        document.querySelectorAll('[id^="MTG_INSTR"]').forEach(el => {
+            const name = el.innerText.trim();
+            const rating = ratings[name];
+
+            if (rating) {
+                const span = document.createElement("span");
+                span.className = "rating";
+                span.innerHTML = `★ ${rating}`;
+                el.parentElement.appendChild(span);
+            }
+        });
+
+        function sortSections() {
+            const root = document.getElementById("test-root");
+            const sections = [...root.children];
+
+            sections.forEach(section => {
+                const profs = [...section.querySelectorAll('[id^="MTG_INSTR"]')];
+
+                profs.sort((a, b) => {
+                    const r1 = ratings[a.innerText.trim()] || 0;
+                    const r2 = ratings[b.innerText.trim()] || 0;
+                    return r2 - r1;
+                });
+
+                profs.forEach(p => {
+                    section.appendChild(p.parentElement);
+                });
+            });
+        }
+    </script>
+
+</body>
+
+</html>

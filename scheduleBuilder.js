@@ -257,6 +257,28 @@ window.addEventListener(
   true,
 );
 
+function getScheduleStars(rating) {
+  const value = Number(rating);
+
+  if (!Number.isFinite(value)) {
+    return `<span>★ ★ ★ ★ ★</span>`;
+  }
+
+  const rounded = Math.round(value);
+
+  let stars = "";
+
+  for (let i = 0; i < 5; i++) {
+    if (i < rounded) {
+      stars += "★ ";
+    } else {
+      stars += `<span>★</span> `;
+    }
+  }
+
+  return stars.trim();
+}
+
 function showScheduleProfessorPopup(prof, anchorEl) {
   document.querySelector(".bs-prof-popup")?.remove();
 
@@ -358,7 +380,9 @@ function showScheduleProfessorPopup(prof, anchorEl) {
       </div>
 
       <div class="bs-review-row">
-        <div class="bs-stars">★ ★ ★ ★ <span>★</span></div>
+        <div class="bs-stars">
+          ${getScheduleStars(rating)}
+        </div>
           <div>${!isFound
       ? "Not on RateMyProfessors"
       : hasReviews

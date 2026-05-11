@@ -318,6 +318,28 @@ if (document.readyState === "complete") {
   });
 }
 
+function getStars(rating) {
+  const value = Number(rating);
+
+  if (!Number.isFinite(value)) {
+    return `<span>★ ★ ★ ★ ★</span>`;
+  }
+
+  const rounded = Math.round(value);
+
+  let stars = "";
+
+  for (let i = 0; i < 5; i++) {
+    if (i < rounded) {
+      stars += "★ ";
+    } else {
+      stars += `<span>★</span> `;
+    }
+  }
+
+  return stars.trim();
+}
+
 function showProfessorPopup(prof, doc, e) {
   doc.querySelector(".bs-prof-popup")?.remove();
 
@@ -412,7 +434,9 @@ function showProfessorPopup(prof, doc, e) {
       </div>
 
       <div class="bs-review-row">
-        <div class="bs-stars">★ ★ ★ ★ <span>★</span></div>
+        <div class="bs-stars">
+          ${getStars(rating)}
+          </div>
         <div>${!isFound
       ? "Not on RateMyProfessors"
       : hasReviews
