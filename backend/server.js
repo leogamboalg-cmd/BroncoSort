@@ -1,6 +1,8 @@
+//server.js
 import express from "express";
 import cors from "cors";
 import professorRoutes from "./routes/professorRoutes.js";
+import collectDataRoutes from "./routes/collectDataRoutes.js";
 import rateLimit from "express-rate-limit";
 
 const app = express();
@@ -17,18 +19,27 @@ const ratingsLimiter = rateLimit({
 
 // Middleware
 // app.use(cors());
-app.use(cors({
-  origin: [
-    "https://cmsweb.cms.cpp.edu",
-    "http://localhost:3000",
-    "http://localhost:5500",
-  ],
-}));
-app.use(express.json());
-
+app.use(
+  cors({
+    origin: [
+      "https://cmsweb.cms.cpp.edu",
+      "http://localhost:3000",
+      "http://localhost:5500",
+    ],
+  }),
+);
+// Increase limit to handle bloated university tables
+app.use(express.json({ limit: "10mb" }));
 // Basic GET route
 app.get("/", (req, res) => {
   res.send("Hello from BroncoSort Backend!");
+});
+app.get("/ip", (req, res) => {
+  res.json({
+    ip: req.ip,
+    ips: req.ips, // List of proxy IPs if trust proxy is on
+    header: req.headers["x-forwarded-for"],
+  });
 });
 
 app.get("/api/health", (req, res) => {
@@ -36,6 +47,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/professor", ratingsLimiter, professorRoutes);
+app.use("/api/collect", ratingsLimiter, collectDataRoutes);
 
 // Start the server
 app.listen(PORT, () => {
