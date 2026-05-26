@@ -44,15 +44,13 @@ requestSchoolBtn.addEventListener("click", async () => {
       (response) => {
         if (chrome.runtime.lastError) {
           console.error("Message error:", chrome.runtime.lastError.message);
-          alert(
-            "Could not run on this page. Make sure you're on a class registration/search page.",
-          );
+          alert(chrome.runtime.lastError.message);
           return;
         }
 
         if (!response?.success) {
           console.error("Collect script failed:", response?.error);
-          alert("Failed to send request.");
+          alert(response?.error || "Failed to send request.");
           return;
         }
 

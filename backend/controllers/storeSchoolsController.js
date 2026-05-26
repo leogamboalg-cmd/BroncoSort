@@ -2,7 +2,7 @@ import "dotenv/config";
 import { Redis } from "@upstash/redis";
 import crypto from "crypto";
 
-const TTL = 60 * 60 * 24 * 7; // 7 days
+const TTL = 60 * 60 * 24 * 14; // 7 days
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -19,9 +19,15 @@ export const storeSchools = async (req, res) => {
       });
     }
 
-    const requestId = crypto.randomUUID();
+    const cacheKey = `request:school:${schoolBody.school.id}`;
 
-    const cacheKey = `request:school:${schoolBody.school.id}:${requestId}`;
+    const existing = await redis.get(cacheKey);
+
+    if (existing) {
+      return res.status(409).json({
+        error: "School already requested.",
+      });
+    }
 
     await redis.set(cacheKey, schoolBody, {
       ex: TTL,
