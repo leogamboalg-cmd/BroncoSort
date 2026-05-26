@@ -1,37 +1,33 @@
-const params = new URLSearchParams(window.location.search);
-
-const schoolName = params.get("school");
-
-document.getElementById("schoolName").textContent =
-  schoolName || "Unknown School";
-
-document.getElementById("sendRequest").addEventListener("click", async () => {
-  const status = document.getElementById("status");
-
-  status.textContent = "Sending request...";
+requestSchoolBtn.addEventListener("click", async () => {
+  if (!selectedSchool) {
+    alert("Please select a school from the dropdown.");
+    return;
+  }
 
   try {
-    // Later:
-    // generate sanitized HTML here
+    console.log("Sending request for:", selectedSchool);
 
-    // Example future backend request:
+    // later:
+    // const sanitizedHTML = ...
+
     /*
-      await fetch("https://broncosort.onrender.com/api/collectData", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          schoolName,
-          html: sanitizedHTML
-        })
-      });
-      */
+    await fetch("https://broncosort.onrender.com/api/collect", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
 
-    status.textContent = "Request sent successfully!";
+      body: JSON.stringify({
+        school: selectedSchool,
+        html: sanitizedHTML,
+      }),
+    });
+    */
+
+    alert(`Request submitted for ${selectedSchool.name}`);
   } catch (err) {
     console.error(err);
 
-    status.textContent = "Failed to send request.";
+    alert("Failed to submit request.");
   }
 });

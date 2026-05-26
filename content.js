@@ -364,12 +364,9 @@ function showProfessorPopup(prof, doc, e) {
   const departmentTotal = ranking?.departmentTotal ?? null;
 
   const ringDegrees =
-    topPercent != null
-      ? Math.min(((100 - topPercent) / 100) * 360, 360)
-      : 88;
+    topPercent != null ? Math.min(((100 - topPercent) / 100) * 360, 360) : 88;
 
-  const rankTitle =
-    topPercent != null ? `Top ${topPercent}%` : "Coming Soon";
+  const rankTitle = topPercent != null ? `Top ${topPercent}%` : "Coming Soon";
 
   const rankSub =
     departmentRank != null && departmentTotal != null
@@ -437,12 +434,13 @@ function showProfessorPopup(prof, doc, e) {
         <div class="bs-stars">
           ${getStars(rating)}
           </div>
-        <div>${!isFound
-      ? "Not on RateMyProfessors"
-      : hasReviews
-        ? `Based on <strong>${reviews}</strong> student reviews`
-        : "No student reviews yet"
-    }</div>
+        <div>${
+          !isFound
+            ? "Not on RateMyProfessors"
+            : hasReviews
+              ? `Based on <strong>${reviews}</strong> student reviews`
+              : "No student reviews yet"
+        }</div>
       </div>
 
       <a class="bs-btn" target="_blank">
@@ -477,9 +475,7 @@ function showProfessorPopup(prof, doc, e) {
   const spaceBelow = win.innerHeight - r.bottom;
 
   const top =
-    spaceBelow < popupHeight + 16
-      ? r.top - popupHeight - 8
-      : r.bottom + 8;
+    spaceBelow < popupHeight + 16 ? r.top - popupHeight - 8 : r.bottom + 8;
 
   const left = Math.min(r.left, win.innerWidth - popupWidth - 12);
 
@@ -931,3 +927,190 @@ function injectBroncoSortStyles(doc) {
   doc.head.appendChild(style);
 }
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action !== "RUN_COLLECT_SCRIPT") return;
+
+  console.log("Request my school clicked:", message.school);
+
+  runSchoolRequest(message.school)
+    .then((result) => {
+      sendResponse({
+        success: true,
+        result,
+      });
+    })
+    .catch((err) => {
+      console.error("School request failed:", err);
+
+      sendResponse({
+        success: false,
+        error: err.message,
+      });
+    });
+
+  return true;
+});
+
+async function runSchoolRequest(school) {
+  const pages = [];
+
+  pages.push({
+    type: "parent",
+    name: "main_parent_page",
+    url: window.location.href,
+    html: sanitizeHTML(document),
+  });
+
+  document.querySelectorAll("iframe").forEach((frame, index) => {
+    try {
+      const frameDoc = frame.contentWindow?.document;
+      if (!frameDoc) return;
+
+      pages.push({
+        type: "iframe",
+        name: frame.id || frame.name || `frame_${index + 1}`,
+        url: frame.src || null,
+        html: sanitizeHTML(frameDoc),
+      });
+    } catch (err) {
+      console.warn(`Skipped iframe ${index}: cross-origin restriction.`);
+    }
+  });
+
+  const payload = {
+    school,
+    pageUrl: window.location.href,
+    collectedAt: new Date().toISOString(),
+    pages,
+  };
+
+  const res = await fetch(`${API_BASE}/api/collect/store`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+
+  return await res.json();
+}
+
+function sanitizeHTML(doc) {
+  const REDACTED = "[REDACTED]";
+  const clone = doc.documentElement.cloneNode(true);
+
+  clone
+    .querySelectorAll("script, object, embed, iframe[srcdoc], noscript")
+    .forEach((el) => el.remove());
+
+  clone.querySelectorAll("input[type='hidden']").forEach((el) => el.remove());
+
+  clone.querySelectorAll("form").forEach((form) => {
+    form.removeAttribute("action");
+    form.removeAttribute("method");
+  });
+
+  clone.querySelectorAll("input, textarea, select").forEach((el) => {
+    el.removeAttribute("value");
+    el.removeAttribute("checked");
+    el.removeAttribute("selected");
+
+    if (el.tagName === "TEXTAREA") {
+      el.textContent = "";
+    }
+  });
+
+  clone
+    .querySelectorAll("#pt_envinfo_win0, #pt_pageinfo_win0")
+    .forEach((el) => el.remove());
+
+  clone
+    .querySelectorAll(
+      ".gh-username, #DERIVED_SSTSNAV_PERSON_NAME, .PALEVEL0PRIMARY",
+    )
+    .forEach((el) => {
+      el.textContent = REDACTED;
+    });
+
+  const walker = document.createTreeWalker(clone, NodeFilter.SHOW_COMMENT);
+  const comments = [];
+
+  while (walker.nextNode()) {
+    comments.push(walker.currentNode);
+  }
+
+  comments.forEach((comment) => comment.remove());
+
+  clone.querySelectorAll("*").forEach((el) => {
+    [...el.attributes].forEach((attr) => {
+      const name = attr.name.toLowerCase();
+      const value = attr.value;
+
+      if (name.startsWith("on")) {
+        el.removeAttribute(attr.name);
+        return;
+      }
+
+      const blockedAttrKeywords = [
+        "token",
+        "session",
+        "sid",
+        "icsid",
+        "password",
+        "passwd",
+        "secret",
+        "auth",
+        "cookie",
+        "csrf",
+      ];
+
+      if (blockedAttrKeywords.some((k) => name.includes(k))) {
+        el.removeAttribute(attr.name);
+        return;
+      }
+
+      const safeDesignAttrs = [
+        "href",
+        "src",
+        "class",
+        "id",
+        "rel",
+        "type",
+        "media",
+        "style",
+      ];
+
+      if (!safeDesignAttrs.includes(name)) {
+        const suspiciousValuePatterns = [
+          /^eyJ[A-Za-z0-9_-]+\./,
+          /^[A-Za-z0-9+/=_-]{40,}$/,
+        ];
+
+        if (suspiciousValuePatterns.some((p) => p.test(value))) {
+          el.setAttribute(attr.name, REDACTED);
+        }
+      }
+    });
+  });
+
+  let html = clone.outerHTML;
+
+  const redactions = [
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+    /\b\d{8,12}\b/g,
+    /ICSID[^"&<\s]*/gi,
+    /cpoprd\d+/gi,
+    /CPOMPRD\/ORACLE/gi,
+    /CHROME\/[\d.]+\/WIN\d+/gi,
+  ];
+
+  redactions.forEach((pattern) => {
+    html = html.replace(pattern, REDACTED);
+  });
+
+  return "<!DOCTYPE html>\n" + html;
+}

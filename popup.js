@@ -29,22 +29,40 @@ requestSchoolBtn.addEventListener("click", async () => {
     return;
   }
 
-  console.log("School requested:", selectedSchool);
+  try {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
 
-  chrome.windows.create({
-    url:
-      chrome.runtime.getURL("request-school.html") +
-      "?schoolId=" +
-      encodeURIComponent(selectedSchool.id) +
-      "&schoolName=" +
-      encodeURIComponent(selectedSchool.name) +
-      "&schoolWebsite=" +
-      encodeURIComponent(selectedSchool.website),
+    chrome.tabs.sendMessage(
+      tab.id,
+      {
+        action: "RUN_COLLECT_SCRIPT",
+        school: selectedSchool,
+      },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error("Message error:", chrome.runtime.lastError.message);
+          alert(
+            "Could not run on this page. Make sure you're on a class registration/search page.",
+          );
+          return;
+        }
 
-    type: "popup",
-    width: 520,
-    height: 650,
-  });
+        if (!response?.success) {
+          console.error("Collect script failed:", response?.error);
+          alert("Failed to send request.");
+          return;
+        }
+
+        alert(`Request submitted for ${selectedSchool.name}`);
+      },
+    );
+  } catch (err) {
+    console.error(err);
+    alert("Failed to run request script.");
+  }
 });
 
 async function searchSchools(query) {
