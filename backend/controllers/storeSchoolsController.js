@@ -35,7 +35,6 @@ export const storeSchools = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      requestId,
     });
   } catch (err) {
     console.error(err);
