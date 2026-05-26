@@ -27,3 +27,6 @@ backend/node_modules/
 
 waitlist_tracker
 collectDataTest.js
+commentTest.js
+testing/
+requestSchoolAPITest.js

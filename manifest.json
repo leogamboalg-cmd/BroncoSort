@@ -1,28 +1,29 @@
 {
-    "manifest_version": 3,
-    "name": "BroncoSort",
-    "version": "1.1",
-    "description": "Sorts Cal Poly Pomona registration results by professor ratings and adds quick links to RateMyProfessors.",
-    "permissions": [
-        "storage"
-    ],
-    "host_permissions": [
-        "https://*.cpp.edu/*"
-    ],
-    "content_scripts": [
-        {
-            "matches": [
-                "https://*.cpp.edu/*"
-            ],
-            "js": [
-                "content.js",
-                "scheduleBuilder.js"
-            ],
-            "css": [
-                "content.css"
-            ],
-            "all_frames": true,
-            "run_at": "document_idle"
-        }
-    ]
+  "manifest_version": 3,
+  "name": "BroncoSort",
+  "version": "1.1",
+  "description": "Sorts Cal Poly Pomona registration results by professor ratings and adds quick links to RateMyProfessors.",
+
+  "permissions": ["storage"],
+
+  "host_permissions": ["https://*.cpp.edu/*"],
+
+  "action": {
+    "default_title": "BroncoSort",
+    "default_popup": "popup.html"
+  },
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://*.cpp.edu/*"],
+      "js": ["content.js", "scheduleBuilder.js"],
+      "css": ["content.css"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ]
 }

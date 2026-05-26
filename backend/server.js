@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import professorRoutes from "./routes/professorRoutes.js";
 import collectDataRoutes from "./routes/collectDataRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
 import rateLimit from "express-rate-limit";
 
 const app = express();
@@ -29,7 +30,7 @@ app.use(
   }),
 );
 // Increase limit to handle bloated university tables
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "100kb" }));
 // Basic GET route
 app.get("/", (req, res) => {
   res.send("Hello from BroncoSort Backend!");
@@ -48,6 +49,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/professor", ratingsLimiter, professorRoutes);
 app.use("/api/collect", ratingsLimiter, collectDataRoutes);
+app.use("/api/schools", ratingsLimiter, searchRoutes);
 
 // Start the server
 app.listen(PORT, () => {
