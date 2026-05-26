@@ -26,6 +26,8 @@ app.use(
       "https://cmsweb.cms.cpp.edu",
       "http://localhost:3000",
       "http://localhost:5500",
+
+      "chrome-extension://fncmdjkackjaicadhgnmlgeckladjkoi",
     ],
   }),
 );
