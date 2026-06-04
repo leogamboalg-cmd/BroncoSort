@@ -25,7 +25,7 @@ schoolInput.addEventListener("input", () => {
 
 requestSchoolBtn.addEventListener("click", async () => {
   if (!selectedSchool) {
-    alert("Please select a school from the dropdown.");
+    showToast("Please select a school from the dropdown.");
     return;
   }
 
@@ -50,11 +50,17 @@ requestSchoolBtn.addEventListener("click", async () => {
 
         if (!response?.success) {
           console.error("Collect script failed:", response?.error);
-          alert(response?.error || "Failed to send request.");
+
+          if (response?.status === 409) {
+            showToast("School already requested.");
+          } else {
+            alert(response?.error || "Failed to send request.");
+          }
+
           return;
         }
 
-        alert(`Request submitted for ${selectedSchool.name}`);
+        showToast("Request submitted!", "success");
       },
     );
   } catch (err) {
@@ -138,3 +144,73 @@ document.addEventListener("click", (event) => {
     hideDropdown();
   }
 });
+
+function showToast(message, type = "info") {
+  const existing = document.querySelector(".bs-toast");
+
+  if (existing) {
+    existing.remove();
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `bs-toast bs-toast-${type}`;
+  toast.textContent = message;
+
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("show");
+  });
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+
+    setTimeout(() => {
+      toast.remove();
+    }, 250);
+  }, 3000);
+}
+
+const toastStyle = document.createElement("style");
+
+toastStyle.textContent = `
+  .bs-toast {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1b1b1b;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    transition:
+      opacity 0.25s ease,
+      transform 0.25s ease;
+    z-index: 999999;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    max-width: 320px;
+    text-align: center;
+  }
+
+  .bs-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .bs-toast-success {
+    background: #1b5e20;
+  }
+
+  .bs-toast-error {
+    background: #b42318;
+  }
+
+  .bs-toast-info {
+    background: #1f2937;
+  }
+`;
+
+document.head.appendChild(toastStyle);

@@ -225,9 +225,9 @@ async function fetchRatingsAndSortCourses() {
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      console.error("Backend error:", res.status, text);
-      throw new Error(`Request failed: ${res.status}`);
+      const err = new Error(`Backend error: ${res.status}`);
+      err.status = res.status;
+      throw err;
     }
 
     const data = await res.json();
@@ -944,6 +944,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       sendResponse({
         success: false,
+        status: err.status,
         error: err.message,
       });
     });
@@ -993,7 +994,9 @@ async function runSchoolRequest(school) {
   });
 
   if (!res.ok) {
-    throw new Error(`Backend error: ${res.status}`);
+    const err = new Error(`Backend error: ${res.status}`);
+    err.status = res.status;
+    throw err;
   }
 
   return await res.json();
