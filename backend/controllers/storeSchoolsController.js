@@ -3,6 +3,7 @@
 import "dotenv/config";
 import { Redis } from "@upstash/redis";
 import crypto from "crypto";
+import { BUILT_IN_SCHOOLS } from "../config/supportedSchools.js";
 
 const TTL = 60 * 60 * 24 * 14; // 14 days
 const RATE_LIMIT_TTL = 60 * 10; // 10 minutes
@@ -23,12 +24,29 @@ export const storeSchools = async (req, res) => {
       });
     }
 
+    const schoolName = schoolBody.school.name?.trim();
+
+    if (BUILT_IN_SCHOOLS.has(schoolName)) {
+      return res.status(400).json({
+        error: "This school is already supported.",
+      });
+    }
+
     const schoolId = schoolBody.school.id;
     const requestId = crypto.randomUUID();
+    const storedAt = new Date().toISOString();
 
-    // Uses IP temporarily for rate limiting only.
-    // It expires after 10 minutes and is not stored with the request.
-    const hashedIp = crypto.createHash("sha256").update(req.ip).digest("hex");
+    const requestSummary = {
+      schoolName: schoolBody.school.name,
+      website: schoolBody.school.website,
+      pageUrl: schoolBody.pageUrl,
+      storedAt,
+    };
+
+    const hashedIp = crypto
+      .createHash("sha256")
+      .update(req.ip || "unknown")
+      .digest("hex");
 
     const ipKey = `request:ip:${hashedIp}:${schoolId}`;
     const recentCount = await redis.incr(ipKey);
@@ -49,7 +67,8 @@ export const storeSchools = async (req, res) => {
     const dataToStore = {
       ...schoolBody,
       requestId,
-      storedAt: new Date().toISOString(),
+      storedAt,
+      requestSummary,
     };
 
     await redis.set(cacheKey, dataToStore, {
