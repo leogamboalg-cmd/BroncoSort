@@ -1,0 +1,128 @@
+body {
+  margin: 0;
+  width: 340px;
+  font-family: Arial, sans-serif;
+  background: #101827;
+  color: white;
+}
+
+.popup {
+  padding: 22px;
+}
+
+h1 {
+  margin: 0 0 18px;
+  font-size: 24px;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #0b7a3b;
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.info {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b8c3d1;
+}
+
+.warning {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffd166;
+}
+
+.school-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #2b3850;
+  background: #182235;
+  color: white;
+  font-size: 14px;
+  outline: none;
+}
+
+.school-input::placeholder {
+  color: #8ea0bd;
+}
+
+.school-search-wrap {
+  position: relative;
+}
+
+.school-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+
+  background: white;
+  border: 1px solid #d0d5dd;
+  border-radius: 12px;
+
+  max-height: 240px;
+  overflow-y: auto;
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+
+  z-index: 1000;
+}
+
+.school-option {
+  padding: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.school-option:hover {
+  background: #f5f7fa;
+}
+
+.school-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.school-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #667085;
+}
+
+.hidden {
+  display: none;
+}
+
+.school-option {
+  padding: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  color: #111827;
+}
+
+.school-option:hover {
+  background: #f5f7fa;
+}
+
+.school-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+.school-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #667085;
+}

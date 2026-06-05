@@ -1,3 +1,5 @@
+//storeSchoolsController.js
+
 import "dotenv/config";
 import { Redis } from "@upstash/redis";
 import crypto from "crypto";

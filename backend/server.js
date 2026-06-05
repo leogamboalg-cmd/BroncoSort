@@ -9,7 +9,7 @@ import rateLimit from "express-rate-limit";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.set("trust proxy", true);
+app.set("trust proxy", 1);
 
 const ratingsLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
@@ -51,9 +51,14 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/professor", ratingsLimiter, professorRoutes);
-app.use("/api/collect", ratingsLimiter, collectDataRoutes);
+app.use("/api/collectData", ratingsLimiter, collectDataRoutes);
 app.use("/api/schools", ratingsLimiter, searchRoutes);
 app.use("/api/collect", ratingsLimiter, storeSchoolRoutes);
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: "Something went wrong internally." });
+});
 
 // Start the server
 app.listen(PORT, () => {
