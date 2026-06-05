@@ -43,18 +43,23 @@ requestSchoolBtn.addEventListener("click", async () => {
       },
       (response) => {
         if (chrome.runtime.lastError) {
-          alert(chrome.runtime.lastError.message);
+          showToast(
+            "BroncoSort is not active on this page. Open a supported school page and refresh.",
+            "error",
+          );
           return;
         }
 
         if (!response?.success) {
-          if (response?.status === 409) {
-            showToast("School already requested.");
-          } else {
+          if (response?.status === 429) {
+            showToast("Too many requests. Try again later.", "error");
+          } else if (response?.status === 400) {
             showToast(
-              `Request failed: ${response?.status || "unknown"} ${response?.error || ""}`,
+              response?.error || "This request is not allowed.",
               "error",
             );
+          } else {
+            showToast("Request failed. Please try again.", "error");
           }
 
           return;

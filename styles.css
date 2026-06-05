@@ -1,0 +1,310 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background: #f6faf6;
+  color: #07150d;
+  overflow-x: hidden;
+}
+
+.navbar {
+  width: 100%;
+  padding: 26px 72px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: rgba(246, 250, 246, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 2rem;
+  font-weight: 900;
+  color: #0d7a39;
+}
+
+.logo-mark {
+  font-size: 1.4rem;
+}
+
+nav {
+  display: flex;
+  gap: 38px;
+}
+
+nav a {
+  text-decoration: none;
+  color: #102116;
+  font-weight: 600;
+}
+
+.chrome-btn {
+  text-decoration: none;
+  background: linear-gradient(135deg, #19a34a, #0c6d31);
+  color: white;
+  padding: 15px 28px;
+  border-radius: 16px;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(20, 140, 60, 0.18);
+  transition: 0.2s ease;
+}
+
+.chrome-btn:hover {
+  transform: translateY(-2px);
+}
+
+.hero {
+  min-height: calc(100vh - 90px);
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  align-items: center;
+  gap: 70px;
+  padding: 70px;
+}
+
+.hero-left h1 {
+  font-size: 5.5rem;
+  line-height: 0.95;
+  letter-spacing: -4px;
+  margin: 24px 0;
+  font-weight: 900;
+}
+
+.hero-text {
+  font-size: 1.35rem;
+  line-height: 1.7;
+  max-width: 620px;
+  color: #45554a;
+}
+
+.badge {
+  display: inline-flex;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #e3f6e7;
+  color: #0d7a39;
+  font-weight: 700;
+}
+
+.hero-actions {
+  margin-top: 34px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.free-text {
+  color: #0d7a39;
+  font-weight: 700;
+}
+
+.mini-points {
+  margin-top: 38px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.mini-points span {
+  padding: 12px 16px;
+  background: white;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: #385141;
+  font-weight: 600;
+}
+
+.browser {
+  background: white;
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 35px 80px rgba(0, 0, 0, 0.1);
+}
+
+.browser-top {
+  background: linear-gradient(135deg, #0b6d31, #085a29);
+  color: white;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dots {
+  display: flex;
+  gap: 8px;
+}
+
+.dots span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: white;
+  opacity: 0.9;
+}
+
+.browser-title {
+  font-weight: 700;
+}
+
+.table-wrap {
+  padding: 28px;
+}
+
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.course-header h3 {
+  font-size: 1.5rem;
+}
+
+.course-header p {
+  margin-top: 6px;
+  color: #6c7c71;
+}
+
+.course-header button {
+  border: none;
+  background: #edf7ef;
+  color: #0d7a39;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead {
+  background: #f2f5f2;
+}
+
+th {
+  text-align: left;
+  padding: 18px;
+  color: #506055;
+  font-size: 0.92rem;
+}
+
+td {
+  padding: 22px 18px;
+  border-bottom: 1px solid #edf1ed;
+  font-weight: 500;
+}
+
+.rating {
+  font-weight: 800;
+}
+
+.rating.good {
+  color: #11843c;
+}
+
+.rating.gray {
+  color: #8a948d;
+}
+
+.bottom-note {
+  margin-top: 20px;
+  background: #eef8f0;
+  color: #0d7a39;
+  padding: 18px;
+  border-radius: 16px;
+  font-weight: 700;
+}
+
+.bottom-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px;
+  padding: 0 70px 70px;
+}
+
+.strip-card {
+  background: white;
+  border-radius: 24px;
+  padding: 28px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.strip-card h4 {
+  font-size: 1.3rem;
+  margin-bottom: 10px;
+}
+
+.strip-card p {
+  color: #58685d;
+  line-height: 1.6;
+}
+
+@media (max-width: 1200px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-left h1 {
+    font-size: 4.5rem;
+  }
+
+  .bottom-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .navbar {
+    padding: 22px;
+  }
+
+  nav {
+    display: none;
+  }
+
+  .top-btn {
+    display: none;
+  }
+
+  .hero {
+    padding: 28px;
+  }
+
+  .hero-left h1 {
+    font-size: 3.3rem;
+  }
+
+  .hero-text {
+    font-size: 1.1rem;
+  }
+
+  .course-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  table {
+    font-size: 0.85rem;
+  }
+
+  th,
+  td {
+    padding: 14px 10px;
+  }
+}

@@ -993,8 +993,14 @@ async function runSchoolRequest(school) {
   });
 
   if (!res.ok) {
-    const err = new Error(`Backend error: ${res.status}`);
+    const data = await res.json().catch(() => null);
+
+    const err = new Error(
+      data?.error || `Request failed with status ${res.status}`,
+    );
+
     err.status = res.status;
+
     throw err;
   }
 
