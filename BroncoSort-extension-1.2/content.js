@@ -199,14 +199,6 @@ async function fetchRatingsAndSortCourses() {
 
     const courses = collectCourses(doc);
 
-    console.log(
-      "Courses found:",
-      courses.map((c) => ({
-        title: c.courseTitle,
-        names: c.options.map((o) => o.name),
-      })),
-    );
-
     const uniqueProfessorNames = [
       ...new Set(
         courses.flatMap((course) => course.options.map((opt) => opt.name)),
@@ -223,7 +215,7 @@ async function fetchRatingsAndSortCourses() {
       professors: uniqueProfessorNames,
     };
 
-    console.log("Sending to backend:", payload);
+    console.log(`Sending ${uniqueProfessorNames.length} professors`);
 
     const res = await fetch(`${API_BASE}/api/professor/ratings`, {
       method: "POST",
@@ -241,8 +233,6 @@ async function fetchRatingsAndSortCourses() {
 
     const data = await res.json();
     const ratingsByName = data.ratingsByName || {};
-
-    console.log("Received ratings:", ratingsByName);
 
     courses.forEach((course) => {
       course.options.sort((a, b) => {
@@ -262,14 +252,6 @@ async function fetchRatingsAndSortCourses() {
       course.options.forEach((opt) => {
         parent.appendChild(opt.block);
       });
-
-      console.log(
-        "Sorted within course only:",
-        course.courseTitle,
-        course.options.map(
-          (opt) => `${opt.name} (${ratingsByName[opt.name]?.rating || 0})`,
-        ),
-      );
     });
   } catch (err) {
     console.error("Error:", err);
@@ -949,8 +931,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     })
     .catch((err) => {
-      console.error("School request failed:", err);
-
       sendResponse({
         success: false,
         status: err.status,
@@ -974,13 +954,23 @@ async function runSchoolRequest(school) {
   document.querySelectorAll("iframe").forEach((frame, index) => {
     try {
       const frameDoc = frame.contentWindow?.document;
+
       if (!frameDoc) return;
+
+      let sanitized = "";
+
+      try {
+        sanitized = sanitizeHTML(frameDoc);
+      } catch (err) {
+        console.warn(`Could not sanitize iframe ${index}`);
+        return;
+      }
 
       pages.push({
         type: "iframe",
         name: frame.id || frame.name || `frame_${index + 1}`,
         url: frame.src || null,
-        html: sanitizeHTML(frameDoc),
+        html: sanitized,
       });
     } catch (err) {
       console.warn(`Skipped iframe ${index}: cross-origin restriction.`);

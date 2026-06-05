@@ -21,17 +21,98 @@ const ratingsLimiter = rateLimit({
 
 // Middleware
 // app.use(cors());
+
+const allowedDomains = [
+  // Local
+  "localhost",
+
+  // CSU / UC
+  "cmsweb.cms.cpp.edu",
+  "cpp.edu",
+  "fullerton.edu",
+  "calstate.edu",
+  "csulb.edu",
+  "csudh.edu",
+  "csueastbay.edu",
+  "csufresno.edu",
+  "humboldt.edu",
+  "csula.edu",
+  "csum.edu",
+  "csumb.edu",
+  "csun.edu",
+  "csus.edu",
+  "csusb.edu",
+  "sdsu.edu",
+  "sfsu.edu",
+  "sjsu.edu",
+  "sonoma.edu",
+  "calpoly.edu",
+  "berkeley.edu",
+  "ucdavis.edu",
+  "uci.edu",
+  "ucla.edu",
+  "ucr.edu",
+  "ucmerced.edu",
+  "ucsb.edu",
+  "ucsc.edu",
+  "ucsd.edu",
+  "ucsf.edu",
+
+  // Nearby community colleges
+  "mtsac.edu",
+  "citruscollege.edu",
+  "riohondo.edu",
+  "chaffey.edu",
+  "pasadena.edu",
+  "glendale.edu",
+  "elac.edu",
+  "cerritos.edu",
+  "fullcoll.edu",
+  "cypresscollege.edu",
+  "sac.edu",
+  "sccollege.edu",
+  "ivc.edu",
+  "saddleback.edu",
+  "orangecoastcollege.edu",
+  "lbcc.edu",
+];
+
+const allowedExtensionOrigins = [
+  "chrome-extension://fncmdjkackjaicadhgnmlgeckladjkoi",
+];
+
 app.use(
   cors({
-    origin: [
-      "https://cmsweb.cms.cpp.edu",
-      "http://localhost:3000",
-      "http://localhost:5500",
+    origin(origin, callback) {
+      // Allows Postman, curl, same-origin requests, etc.
+      if (!origin) {
+        return callback(null, true);
+      }
 
-      "chrome-extension://fncmdjkackjaicadhgnmlgeckladjkoi",
-    ],
+      // Allows only your Chrome extension
+      if (allowedExtensionOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      try {
+        const { hostname } = new URL(origin);
+
+        const allowed = allowedDomains.some((domain) => {
+          return hostname === domain || hostname.endsWith(`.${domain}`);
+        });
+
+        if (allowed) {
+          return callback(null, true);
+        }
+
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+      } catch {
+        return callback(new Error(`Invalid CORS origin: ${origin}`));
+      }
+    },
   }),
 );
+
 // Increase limit to handle bloated university tables
 app.use(express.json({ limit: "10mb" }));
 // Basic GET route

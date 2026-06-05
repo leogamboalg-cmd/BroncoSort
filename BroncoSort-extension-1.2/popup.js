@@ -43,18 +43,18 @@ requestSchoolBtn.addEventListener("click", async () => {
       },
       (response) => {
         if (chrome.runtime.lastError) {
-          console.error("Message error:", chrome.runtime.lastError.message);
           alert(chrome.runtime.lastError.message);
           return;
         }
 
         if (!response?.success) {
-          console.error("Collect script failed:", response?.error);
-
           if (response?.status === 409) {
             showToast("School already requested.");
           } else {
-            alert(response?.error || "Failed to send request.");
+            showToast(
+              `Request failed: ${response?.status || "unknown"} ${response?.error || ""}`,
+              "error",
+            );
           }
 
           return;
@@ -64,7 +64,6 @@ requestSchoolBtn.addEventListener("click", async () => {
       },
     );
   } catch (err) {
-    console.error(err);
     alert("Failed to run request script.");
   }
 });
@@ -91,8 +90,6 @@ async function searchSchools(query) {
 
     renderDropdown(schools);
   } catch (err) {
-    console.error("School search failed:", err);
-
     schoolDropdown.innerHTML = `
       <div class="school-option">
         <div class="school-name">Could not search schools.</div>
@@ -126,8 +123,6 @@ function renderDropdown(schools) {
       selectedSchool = school;
       schoolInput.value = school.name;
       hideDropdown();
-
-      console.log("Selected school:", selectedSchool);
     });
 
     schoolDropdown.appendChild(option);
