@@ -49,12 +49,15 @@ requestSchoolBtn.addEventListener("click", async () => {
         }
 
         if (!response?.success) {
-          console.error("Collect script failed:", response?.error);
+          console.error("Collect script failed:", response);
 
           if (response?.status === 409) {
             showToast("School already requested.");
           } else {
-            alert(response?.error || "Failed to send request.");
+            showToast(
+              `Request failed: ${response?.status || "unknown"} ${response?.error || ""}`,
+              "error",
+            );
           }
 
           return;

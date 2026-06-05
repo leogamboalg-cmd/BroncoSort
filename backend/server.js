@@ -33,7 +33,7 @@ app.use(
   }),
 );
 // Increase limit to handle bloated university tables
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "10mb" }));
 // Basic GET route
 app.get("/", (req, res) => {
   res.send("Hello from BroncoSort Backend!");
