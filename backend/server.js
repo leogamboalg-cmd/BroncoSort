@@ -78,6 +78,7 @@ const allowedDomains = [
 ];
 
 const allowedExtensionOrigins = [
+  "chrome-extension://iimoegnkdjicpamkelchhfcibglblmnh",
   "chrome-extension://fncmdjkackjaicadhgnmlgeckladjkoi",
 ];
 

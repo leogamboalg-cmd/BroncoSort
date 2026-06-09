@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "BroncoSort",
   "version": "1.2",
-  "description": "Sorts university registration results by professor ratings and adds quick links to RateMyProfessors. Expanding support across CSU and UC campuses — request your school!",
+  "description": "Sorts registration results by professor ratings and adds RateMyProfessors links.",
 
   "permissions": ["storage", "activeTab"],
 
@@ -190,6 +190,10 @@
   "action": {
     "default_title": "BroncoSort",
     "default_popup": "popup.html"
+  },
+
+  "background": {
+    "service_worker": "background.js"
   },
 
   "content_scripts": [

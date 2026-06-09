@@ -126,3 +126,32 @@ button {
   font-size: 12px;
   color: #667085;
 }
+
+.popup-links {
+  margin-top: -4px;
+  margin-bottom: 18px;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.popup-links a {
+  color: #86efac;
+  text-decoration: none;
+}
+
+.popup-links a:hover {
+  text-decoration: underline;
+}
+
+.popup-links .divider {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  display: inline-block;
+}
