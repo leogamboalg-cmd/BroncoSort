@@ -189,11 +189,11 @@
 
   "action": {
     "default_title": "BroncoSort",
-    "default_popup": "popup.html"
+    "default_popup": "src/popup/popup.html"
   },
 
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background.js"
   },
 
   "content_scripts": [
@@ -378,7 +378,7 @@
         "https://norcocollege.edu/*",
         "https://*.norcocollege.edu/*"
       ],
-      "js": ["content.js", "scheduleBuilder.js"],
+      "js": ["src/content.js", "src/scheduleBuilder.js"],
       "all_frames": true,
       "run_at": "document_idle"
     }

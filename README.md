@@ -1,183 +1,95 @@
 # BroncoSort
 
-BroncoSort is a Chrome extension for the Cal Poly Pomona registration portal that finds instructor names inside the PeopleSoft results iframe, looks up those professors on Rate My Professors, injects rating links into the page, and reorders sections so higher-rated instructors appear first within each course.
+BroncoSort is a Manifest V3 Chrome extension that adds Rate My Professors context to supported university registration/search pages. It helps students compare course sections by showing professor rating information directly in the registration flow.
 
-<img width="1504" height="942" alt="image" src="https://github.com/user-attachments/assets/09fbd853-0cbf-4f4b-86db-0fc6c523f915" />
+## Features
 
-## What It Does
+- Detects supported registration/search pages.
+- Finds instructor names from course result sections.
+- Requests public Rate My Professors rating data through the BroncoSort backend.
+- Adds rating information and Rate My Professors links near instructor names.
+- Sorts supported course result sections by professor rating when the page structure allows it.
+- Includes a popup with project links and a school request workflow.
 
-- Detects the registration results iframe before doing any DOM work
-- Extracts instructor names from course result blocks
-- Cleans duplicated or messy names before lookup
-- Sends unique professor names to a small backend service
-- Matches professors against Rate My Professors for `Cal Poly Pomona`
-- Injects a rating UI element directly under each instructor name
-- Links the rating to the professor's Rate My Professors page when a match is found
-- Sorts instructor options within a course by rating, highest to lowest
+## Supported School Status
 
-## Current Scope
-
-BroncoSort is currently focused on Cal Poly Pomona only.
-
-The extension is designed around the registration portal structure where instructor data lives inside an iframe. The content script repeatedly checks for page updates because the registration UI does not load everything immediately and can change after filters, searches, or navigation events.
-
-## How It Works
-
-### Extension side
-
-The Chrome extension:
-
-- runs on `https://*.cpp.edu/*`
-- waits for the registration page to finish loading
-- finds the target iframe
-- reads instructor elements with selectors like `[id^="MTG_INSTR"]`
-- builds a unique professor list
-- calls the backend API for ratings
-- injects UI next to the existing registration content
-- reorders instructor blocks inside each course result only
-
-### Backend side
-
-The backend is a small Express app that:
-
-- accepts a school name and professor list
-- searches Rate My Professors for the school once
-- searches professors within that school
-- tries to find an exact normalized name match first
-- returns rating, rating count, and Rate My Professors professor ID
+BroncoSort is actively developed for Cal Poly Pomona registration pages and includes configuration for additional California university and community college domains. Support depends on each school's registration page structure, so newly listed schools may require validation before all features work reliably.
 
 ## Project Structure
 
 ```text
 BroncoSort/
+|- README.md
+|- AGENTS.md
+|- .gitignore
 |- manifest.json
-|- content.js
-|- content.css
-|- privacy-policy.md
+|- src/
+|  |- background.js
+|  |- content.js
+|  |- content.css
+|  |- scheduleBuilder.js
+|  `- popup/
+|     |- popup.html
+|     |- popup.css
+|     `- popup.js
+|- assets/
+|  `- images/
 |- backend/
-|  |- server.js
-|  |- routes/professorRoutes.js
-|  |- controllers/professorController.js
-|  |- package.json
+|- index.html
+|- schools.html
+|- request-school.html
+|- privacy.html
+|- faq.html
+|- images/
+|- dist/
+`- privacy-policy.md
 ```
 
-## Local Development
+The root HTML files power the BroncoSort website/GitHub Pages presentation. The Chrome extension itself is loaded from `manifest.json` and `src/`.
 
-### 1. Start the backend
+## Local Installation
 
-From the `backend` folder:
+1. Clone or download this repository.
+2. Open Chrome and go to `chrome://extensions`.
+3. Enable Developer mode.
+4. Click Load unpacked.
+5. Select the repository root folder, not the `src/` folder.
+6. Open a supported registration/search page and use the extension normally.
+
+## Backend
+
+The extension calls a backend service to retrieve professor rating data. The backend source is included in `backend/`.
+
+For local backend development:
 
 ```bash
+cd backend
 npm install
 npm start
 ```
 
-By default the backend runs on `http://localhost:3000`.
+Do not commit `.env` files or local secrets. Use `backend/.env.example` as the public example file.
 
-### 2. Point the extension at local backend
+## Chrome Web Store
 
-In `content.js`, switch:
+Chrome Web Store listing: _Coming soon_
 
-```js
-const USE_LOCAL = false;
-```
+## Screenshots
 
-to:
+Screenshots and demo images can be added here as the extension UI stabilizes.
 
-```js
-const USE_LOCAL = true;
-```
+## Permissions and Privacy
 
-This makes the extension call the local API instead of the deployed Render backend.
+BroncoSort requests Chrome extension permissions needed to run on supported registration/search pages and store extension state. It does not collect or store personal user data in the extension source.
 
-### 3. Load the extension in Chrome
+The extension reads course and instructor information already visible on the page. Professor names may be sent to the BroncoSort backend so the extension can retrieve public Rate My Professors information.
 
-1. Open `chrome://extensions`
-2. Enable `Developer mode`
-3. Click `Load unpacked`
-4. Select the project root folder
+See [privacy-policy.md](privacy-policy.md) for the current privacy policy text.
 
-### 4. Test on the registration portal
+## Project Status
 
-Open the Cal Poly Pomona registration page and inspect the console for BroncoSort logs.
-
-Expected flow:
-
-1. Content script loads
-2. Iframe is found
-3. Instructor names are detected
-4. Ratings are fetched
-5. Rating links are injected
-6. Instructor options are reordered within each course
-
-## API
-
-### `POST /api/professor/ratings`
-
-Request body:
-
-```json
-{
-  "school": "Cal Poly Pomona",
-  "professors": ["Jane Doe", "John Smith"]
-}
-```
-
-Response shape:
-
-```json
-{
-  "schoolFound": "Cal Poly Pomona",
-  "ratingsByName": {
-    "Jane Doe": {
-      "found": true,
-      "profName": "Jane Doe",
-      "rating": 4.5,
-      "numRatings": 42,
-      "id": 1234567
-    }
-  }
-}
-```
-
-## Matching Notes
-
-- Names are normalized before comparison
-- Duplicate professor names are removed before lookup
-- Placeholder values like `TBA`, `Staff`, and `Instructor TBA` are ignored
-- If no professor match is found, the UI shows `No rating`
-- Rating order currently treats missing ratings as `0`
-
-## Privacy
-
-BroncoSort does not collect or store personal user data.
-
-The extension only reads course and instructor information already visible on the registration page. Professor names may be sent to the backend so the app can retrieve public Rate My Professors data. See [privacy-policy.md](privacy-policy.md) for the current privacy text.
-
-## Limitations
-
-- Built specifically for the current Cal Poly Pomona registration DOM
-- Depends on iframe access and current PeopleSoft selectors
-- Rate My Professors matching is name-based, so edge cases can still happen
-- The backend currently processes professor searches sequentially
-- Styling is intentionally minimal to avoid interfering with the registration UI
-
-## Roadmap
-
-- Improve matching accuracy for professors with similar names
-- Expand support beyond Cal Poly Pomona
-- Refine injected UI styling
-- Reduce repeated lookups with caching
-- Improve sort behavior for sections with missing or ambiguous matches
-
-## Tech Stack
-
-- Chrome Extension Manifest V3
-- Vanilla JavaScript
-- Express
-- `ratemyprofessors-client`
-- Render for deployed backend hosting
+BroncoSort is in active development. The current focus is improving school compatibility, request-school handling, and the reliability of professor matching without changing the user's registration data.
 
 ## Notes
 
-BroncoSort is not affiliated with or endorsed by Cal Poly Pomona or Rate My Professors.
+BroncoSort is not affiliated with or endorsed by Cal Poly Pomona, the California State University system, the University of California system, any supported school, or Rate My Professors.

@@ -1,14 +1,10 @@
-BroncoSort-extension
-BroncoSort-extension.zip
-AGENTS.md
-Adobe Express - file.png
-BroncoSort.png
-BroncoSortTest-removebg-preview.png
-BroncoSortTest.png
-collectProfessors.js
-rearrange.js
-RegistrationDOM.txt
-temp.js
+# Packaged extension builds
+BroncoSort-extension/
+BroncoSort-extension-*/
+BroncoSort-extension*.zip
+*.zip
+dist/*
+!dist/.gitkeep
 
 # Local environment files
 .env
@@ -23,12 +19,36 @@ backend/node_modules/
 
 # Local logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-waitlist_tracker
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary files and caches
+tmp/
+temp/
+.cache/
+
+# Local/private project notes and experiments
+AGENTS.md
+RegistrationDOM.txt
+collectProfessors.js
+rearrange.js
+temp.js
+assets/images/Adobe Express - file.png
+assets/images/BroncoSort.png
+assets/images/BroncoSortTest-removebg-preview.png
+assets/images/BroncoSortTest.png
+waitlist_tracker/
 collectDataTest.js
 commentTest.js
 testing/
 requestSchoolAPITest.js
 
-new_features
-backend/new_features
+new_features/
+backend/new_features/
