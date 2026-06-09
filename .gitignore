@@ -3,8 +3,7 @@ BroncoSort-extension/
 BroncoSort-extension-*/
 BroncoSort-extension*.zip
 *.zip
-dist/*
-!dist/.gitkeep
+dist/
 
 # Local environment files
 .env
@@ -44,6 +43,10 @@ assets/images/Adobe Express - file.png
 assets/images/BroncoSort.png
 assets/images/BroncoSortTest-removebg-preview.png
 assets/images/BroncoSortTest.png
+docs/assets/images/Adobe Express - file.png
+docs/assets/images/BroncoSort.png
+docs/assets/images/BroncoSortTest-removebg-preview.png
+docs/assets/images/BroncoSortTest.png
 waitlist_tracker/
 collectDataTest.js
 commentTest.js

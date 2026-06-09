@@ -35,17 +35,20 @@ BroncoSort/
 |- assets/
 |  `- images/
 |- backend/
-|- index.html
-|- schools.html
-|- request-school.html
-|- privacy.html
-|- faq.html
-|- images/
+|- docs/
+|  |- index.html
+|  |- schools.html
+|  |- request-school.html
+|  |- privacy.html
+|  |- faq.html
+|  |- assets/
+|  `- images/
+|- tools/
 |- dist/
 `- privacy-policy.md
 ```
 
-The root HTML files power the BroncoSort website/GitHub Pages presentation. The Chrome extension itself is loaded from `manifest.json` and `src/`.
+The `docs/` folder powers the BroncoSort website/GitHub Pages presentation. The Chrome extension itself is loaded from `manifest.json` and `src/`.
 
 ## Local Installation
 
