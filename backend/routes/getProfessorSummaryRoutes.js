@@ -5,6 +5,6 @@ import { getProfessorSummary } from "../controllers/getProfessorSummaryControlle
 const router = express.Router();
 
 // This path is relative to where the router is mounted in server.js
-router.post("/getProfessorSummaryy", getProfessorSummary);
+router.post("/getProfessorSummary", getProfessorSummary);
 
 export default router;
