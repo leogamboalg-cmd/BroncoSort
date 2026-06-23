@@ -34,7 +34,6 @@ Content-Type: application/json
 | `POST` | `/api/summary/getProfessorSummary` | Generate or retrieve an AI review summary |
 | `POST` | `/api/collect/collectData` | Store sanitized registration-page DOM structure |
 | `POST` | `/api/collectData/collectData` | Store detailed DOM compatibility data |
-| `POST` | `/api/checkout/create-checkout-session` | Create a one-time Stripe Checkout session |
 
 The two collection endpoints have similar names but different payloads and purposes. They are documented separately below.
 
@@ -547,60 +546,6 @@ HTTP `200`:
 | `400` | `{"error":"Missing hostname or table skeleton data"}` | Missing/falsy `hostname` or `skeletons.table` |
 | `429` | Shared rate-limit error | More than 60 requests/minute from one IP |
 | `500` | `{"error":"Server error saving structure"}` | Redis or server failure |
-
-## Stripe checkout
-
-### `POST /api/checkout/create-checkout-session`
-
-Creates a Stripe Checkout Session for one unit of the price configured by `STRIPE_PRICE_ID`. The payment mode is a one-time payment.
-
-The request does not currently use fields from its body, so `{}` is sufficient.
-
-#### JavaScript example
-
-```js
-const response = await fetch(
-  "http://localhost:3000/api/checkout/create-checkout-session",
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
-  },
-);
-
-const result = await response.json();
-
-if (!response.ok) {
-  throw new Error(result.error ?? "Could not start checkout");
-}
-
-// Use this only in direct response to a user's checkout action.
-window.location.assign(result.url);
-```
-
-#### Successful response
-
-HTTP `200`:
-
-```json
-{
-  "url": "https://checkout.stripe.com/c/pay/cs_test_example"
-}
-```
-
-After payment, Stripe redirects to:
-
-```text
-{FRONTEND_URL}/index.html?payment=success&session_id={CHECKOUT_SESSION_ID}
-```
-
-If the user cancels, Stripe redirects to:
-
-```text
-{FRONTEND_URL}/index.html?payment=cancel
-```
-
-The client should use the returned URL, not construct a Stripe Checkout URL itself. A success redirect alone should not be treated as secure proof of payment; server-side fulfillment should verify the Stripe session or a Stripe webhook when fulfillment is implemented.
 
 #### Errors
 
