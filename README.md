@@ -1,6 +1,6 @@
 # BroncoSort
 
-BroncoSort is a Manifest V3 Chrome extension that adds Rate My Professors context to supported university registration/search pages. It helps students compare course sections by showing professor rating information directly in the registration flow.
+BroncoSort is a Manifest V3 Chrome extension that adds Rate My Professors context to supported college registration/search pages. It helps students compare course sections by showing professor rating information directly in the registration flow.
 
 ## Features
 
@@ -13,9 +13,9 @@ BroncoSort is a Manifest V3 Chrome extension that adds Rate My Professors contex
 
 ## Supported School Status
 
-BroncoSort is actively developed for Cal Poly Pomona registration pages and includes configuration for additional California university and community college domains. Support depends on each school's registration page structure, so newly listed schools may require validation before all features work reliably.
+BroncoSort is actively developed for Cal Poly Pomona registration pages. The manifest also includes domains for additional California universities and community colleges, but support depends on each school's registration page structure and should be validated before being treated as fully supported.
 
-## Project Structure
+## Repository Layout
 
 ```text
 BroncoSort/
@@ -25,6 +25,11 @@ BroncoSort/
 |- manifest.json
 |- src/
 |  |- background.js
+|  |- bootstrap.js
+|  |- adapters/
+|  |- config/
+|  |- core/
+|  |- styles/
 |  |- content.js
 |  |- content.css
 |  |- scheduleBuilder.js
@@ -48,30 +53,18 @@ BroncoSort/
 `- privacy-policy.md
 ```
 
-The `docs/` folder powers the BroncoSort website/GitHub Pages presentation. The Chrome extension itself is loaded from `manifest.json` and `src/`.
+The Chrome extension is loaded from `manifest.json` and `src/`. Runtime logic starts in `src/bootstrap.js`, uses shared modules in `src/core/`, and delegates page-specific DOM parsing to `src/adapters/`. See [docs/architecture.md](docs/architecture.md) for the adapter interface and school registry details.
+
+The `docs/` folder also contains the GitHub Pages website. Packaged builds and local test exports belong outside source control and are ignored through `.gitignore`.
 
 ## Local Installation
 
 1. Clone or download this repository.
 2. Open Chrome and go to `chrome://extensions`.
 3. Enable Developer mode.
-4. Click Load unpacked.
+4. Click **Load unpacked**.
 5. Select the repository root folder, not the `src/` folder.
 6. Open a supported registration/search page and use the extension normally.
-
-## Backend
-
-The extension calls a backend service to retrieve professor rating data. The backend source is included in `backend/`.
-
-For local backend development:
-
-```bash
-cd backend
-npm install
-npm start
-```
-
-Do not commit `.env` files or local secrets. Use `backend/.env.example` as the public example file.
 
 ## Chrome Web Store
 
@@ -89,9 +82,23 @@ The extension reads course and instructor information already visible on the pag
 
 See [privacy-policy.md](privacy-policy.md) for the current privacy policy text.
 
+## Backend
+
+The extension calls a backend service to retrieve professor rating data. The backend source is included in `backend/`.
+
+For local backend development:
+
+```bash
+cd backend
+npm install
+npm start
+```
+
+Do not commit `.env` files or local secrets. Use `backend/.env.example` as the public example file.
+
 ## Project Status
 
-BroncoSort is in active development. The current focus is improving school compatibility, request-school handling, and the reliability of professor matching without changing the user's registration data.
+BroncoSort is in active development. Current work focuses on school compatibility, request-school handling, and professor matching reliability without changing a student's registration data.
 
 ## Notes
 

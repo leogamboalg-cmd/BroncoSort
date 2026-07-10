@@ -1,14 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-cd /home/leog0495/Desktop/BroncoSort/backend || exit 1
+set -e
 
-echo "===== Starting ranking refresh: $(date) ====="
+# Move into the folder where this script is stored.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-echo "Rebuilding rankings..."
+echo "Refreshing professor rankings..."
 node getProfessorRankings.js
-if [ $? -ne 0 ]; then
-  echo "getProfessorRankings.js failed"
-  exit 1
-fi
-
-echo "===== Ranking refresh complete: $(date) ====="

@@ -1,17 +1,44 @@
-import "dotenv/config";
 import { Redis } from "@upstash/redis";
+import "dotenv/config";
 
 const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-const keys = await redis.keys("rank:prof:*");
+const PATTERN = "rmp:13914:*";
 
-console.log(`Deleting ${keys.length} ranking keys...`);
+async function deleteAllCPPProfessorKeys() {
+  const keys = await redis.keys(PATTERN);
 
-for (const key of keys) {
-    await redis.del(key);
+  console.log(`Found ${keys.length} matching keys.`);
+
+  let deleted = 0;
+  let failed = 0;
+
+  for (const key of keys) {
+    try {
+      const result = await redis.del(key);
+
+      if (result === 1) {
+        deleted++;
+        console.log(`Deleted ${deleted}/${keys.length}: ${key}`);
+      } else {
+        console.log(`Already missing: ${key}`);
+      }
+    } catch (error) {
+      failed++;
+      console.error(`Failed to delete ${key}:`, error);
+    }
+  }
+
+  console.log("\nFinished");
+  console.log("Found:", keys.length);
+  console.log("Deleted:", deleted);
+  console.log("Failed:", failed);
 }
 
-console.log("Done.");
+deleteAllCPPProfessorKeys().catch((error) => {
+  console.error("Script failed:", error);
+  process.exitCode = 1;
+});

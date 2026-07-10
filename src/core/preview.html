@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Premium Popup Preview</title>
+    <link rel="stylesheet" href="../styles/premiumPopup.css" />
+  </head>
+  <body style="font-family: Arial; padding: 80px; background: #eef3ef">
+    <button id="previewBtn">Hover me</button>
+
+    <script src="./premiumProfessorPopup.js"></script>
+
+    <script>
+      const professor = {
+        id: "12345",
+        profName: "Ben Steichen",
+        department: "Computer Science",
+        rating: 4.7,
+        difficulty: 2.5,
+        percentTakeAgain: 90,
+        numRatings: 20,
+        avgGpa: 3.18,
+        ranking: {
+          topPercent: 1,
+          rank: 2,
+          departmentTotal: 84,
+        },
+      };
+
+      const btn = document.getElementById("previewBtn");
+
+      btn.addEventListener("mouseenter", () => {
+        window.BroncoSort.core.premiumPopup.showPremiumPopup({
+          professor,
+          doc: document,
+          anchorEl: btn,
+        });
+      });
+    </script>
+  </body>
+</html>

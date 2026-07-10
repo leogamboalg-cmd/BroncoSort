@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Detailed usage documentation for every BroncoSort backend API endpoint."
+    >
+    <title>BroncoSort Backend API Documentation</title>
+    <link rel="stylesheet" href="api.css">
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="page-header__inner">
+        <p class="eyebrow">Developer documentation</p>
+        <h1>BroncoSort Backend API</h1>
+        <p>
+          Requests, responses, errors, examples, caching, rate limits, and local
+          setup for every endpoint currently implemented by the backend.
+        </p>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" aria-label="Documentation navigation">
+        <strong>On this page</strong>
+        <nav>
+          <a href="#quick-start">Quick start</a>
+          <a href="#common-behavior">Common behavior</a>
+          <a href="#ratings">Professor ratings</a>
+          <a href="#schools">School search</a>
+          <a href="#summary">Professor summary</a>
+          <a href="#school-request">School request</a>
+          <a href="#dom-collection">DOM collection</a>
+          <a href="#checkout">Stripe checkout</a>
+          <a href="#utilities">Utility endpoints</a>
+          <a href="#environment">Environment</a>
+          <a href="#error-handling">Error handling</a>
+          <a href="#limitations">Limitations</a>
+        </nav>
+      </aside>
+
+      <main>
+        <section class="card" id="quick-start">
+          <h2>Quick start</h2>
+          <p>
+            The default local base URL is <code>http://localhost:3000</code>.
+            For a deployed server, replace it with the deployment URL.
+          </p>
+          <pre><code>npm install
+npm start
+
+curl http://localhost:3000/api/health</code></pre>
+          <p>
+            Requests with a JSON body must include
+            <code>Content-Type: application/json</code>. JSON request bodies are
+            limited to 10 MB.
+          </p>
+
+          <h3>Endpoint overview</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>GET</td><td><code>/</code></td><td>Basic server response</td></tr>
+                <tr><td>GET</td><td><code>/ip</code></td><td>Request IP diagnostics</td></tr>
+                <tr><td>GET</td><td><code>/api/health</code></td><td>Process health and server time</td></tr>
+                <tr><td>POST</td><td><code>/api/professor/ratings</code></td><td>Look up multiple professors</td></tr>
+                <tr><td>GET</td><td><code>/api/schools/search</code></td><td>Search College Scorecard schools</td></tr>
+                <tr><td>POST</td><td><code>/api/summary/getProfessorSummary</code></td><td>Get an AI review summary</td></tr>
+                <tr><td>POST</td><td><code>/api/collect/store</code></td><td>Submit a school support request</td></tr>
+                <tr><td>POST</td><td><code>/api/collectData/collectData</code></td><td>Store sanitized DOM structure</td></tr>
+                <tr><td>POST</td><td><code>/api/checkout/create-checkout-session</code></td><td>Start Stripe Checkout</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" id="common-behavior">
+          <h2>Common behavior</h2>
+          <h3>Authentication and CORS</h3>
+          <p>
+            The current API does not require an API key, bearer token, cookie,
+            or user account from callers. Browser access is restricted by CORS
+            to configured Chrome extension IDs, localhost, and configured
+            university or community-college domains and their subdomains.
+          </p>
+          <div class="callout">
+            CORS is not authentication. <code>curl</code>, Postman, and
+            server-to-server clients normally send no browser Origin header and
+            are accepted by the current configuration.
+          </div>
+
+          <h3>Rate limits</h3>
+          <p>
+            Professor, school search, summary, school request, and DOM collection
+            route groups allow 60 requests per client IP per minute. The checkout
+            and utility routes do not use this shared limiter.
+          </p>
+          <pre><code>{
+  "error": "Too many requests, please try again shortly."
+}</code></pre>
+          <p>
+            This response has status <code>429</code>. The school-request endpoint
+            also has its own per-IP and per-school limit.
+          </p>
+
+          <h3>Unhandled errors</h3>
+          <p>Unexpected middleware errors return status <code>500</code>:</p>
+          <pre><code>{ "error": "Something went wrong internally." }</code></pre>
+        </section>
+
+        <section class="endpoint" id="ratings">
+          <div class="endpoint__title">
+            <span class="method method--post">POST</span>
+            <h2>/api/professor/ratings</h2>
+          </div>
+          <p>
+            Looks up one school and multiple professor names through Rate My
+            Professors. Names are cleaned, deduplicated, and matched exactly after
+            normalization. Accents, punctuation, capitalization, and hyphens do
+            not affect the normalized comparison. Results are cached in Redis for
+            24 hours.
+          </p>
+
+          <h3>Request body</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>school</code></td><td>string</td><td>Yes</td><td>School name to search</td></tr>
+                <tr><td><code>professors</code></td><td>string[]</td><td>Yes</td><td>One or more professor names</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <pre><code>{
+  "school": "California State Polytechnic University-Pomona",
+  "professors": ["Jane Doe", "John Smith", "TBA"]
+}</code></pre>
+          <p>
+            <code>TBA</code> and <code>To Be Announced</code> are removed from
+            names. Blank results are discarded and duplicate names are looked up
+            only once.
+          </p>
+
+          <h3>JavaScript example</h3>
+          <pre><code>const response = await fetch(
+  "http://localhost:3000/api/professor/ratings",
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      school: "California State Polytechnic University-Pomona",
+      professors: ["Jane Doe", "John Smith"],
+    }),
+  },
+);
+
+const data = await response.json();
+if (!response.ok) throw new Error(data.error);
+console.log(data.ratingsByName);</code></pre>
+
+          <h3>Successful response</h3>
+          <pre><code>{
+  "schoolFound": "California State Polytechnic University-Pomona",
+  "ratingsByName": {
+    "Jane Doe": {
+      "found": true,
+      "profName": "Jane Doe",
+      "rating": 4.2,
+      "numRatings": 38,
+      "ranking": 125,
+      "id": "1234567",
+      "difficulty": 2.8,
+      "percentTakeAgain": 84,
+      "department": "Computer Science"
+    }
+  }
+}</code></pre>
+          <p>
+            <code>ranking</code> is BroncoSort ranking data stored in Redis and
+            can be <code>null</code>. If no exact professor match exists, the
+            request still returns <code>200</code>, but that professor has
+            <code>found: false</code>, zero rating counts, and nullable details.
+            An isolated lookup failure also adds <code>"error": "Lookup failed"</code>
+            without preventing other names from succeeding.
+          </p>
+
+          <h3>Errors</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Status</th><th>Cause</th><th>Error</th></tr></thead>
+              <tbody>
+                <tr><td><span class="status">400</span></td><td>Missing school or non-empty professor array</td><td><code>Missing school or professors array</code></td></tr>
+                <tr><td><span class="status">404</span></td><td>No matching school</td><td><code>School not found</code></td></tr>
+                <tr><td><span class="status">429</span></td><td>Shared rate limit exceeded</td><td>Rate-limit message</td></tr>
+                <tr><td><span class="status">500</span></td><td>Request-level dependency failure</td><td><code>Server error fetching data</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="endpoint" id="schools">
+          <div class="endpoint__title">
+            <span class="method method--get">GET</span>
+            <h2>/api/schools/search?q={query}</h2>
+          </div>
+          <p>
+            Searches the U.S. Department of Education College Scorecard by school
+            name and returns at most 10 results. A missing query or fewer than two
+            non-space characters returns <code>200</code> with an empty array.
+          </p>
+          <pre><code>const query = new URLSearchParams({ q: "polytechnic pomona" });
+const response = await fetch(
+  `http://localhost:3000/api/schools/search?${query}`,
+);
+const schools = await response.json();</code></pre>
+          <pre><code>[
+  {
+    "id": 110529,
+    "name": "California State Polytechnic University-Pomona",
+    "city": "Pomona",
+    "state": "CA",
+    "website": "www.cpp.edu"
+  }
+]</code></pre>
+          <p>
+            Use <code>URLSearchParams</code> to encode user input. Dependency
+            failures return <code>500</code> with
+            <code>School search failed</code>; the shared limiter can return
+            <code>429</code>.
+          </p>
+        </section>
+
+        <section class="endpoint" id="summary">
+          <div class="endpoint__title">
+            <span class="method method--post">POST</span>
+            <h2>/api/summary/getProfessorSummary</h2>
+          </div>
+          <p>
+            Finds an exact professor, reads up to 30 written reviews with an
+            80,000-character ceiling, and asks Gemini for a compact structured
+            summary. Summaries are cached for 14 days.
+          </p>
+          <div class="callout">
+            This output is AI-generated from public reviews. Present it as a
+            summary of opinions, not as verified fact.
+          </div>
+          <h3>Request body</h3>
+          <pre><code>{
+  "school": "California State Polytechnic University-Pomona",
+  "professorName": "Jane Doe"
+}</code></pre>
+          <h3>Successful response</h3>
+          <pre><code>{
+  "response": {
+    "verdict": "Take Office Hours",
+    "sentimentScore": 78,
+    "tldrSummary": "Clear lectures and moderate projects, but strict grading makes careful preparation and regular attendance important.",
+    "topPros": [
+      "Clear lecture explanations",
+      "Helpful office hours",
+      "Useful project feedback"
+    ],
+    "topCons": [
+      "Strict grading details",
+      "Frequent weekly quizzes",
+      "Fast lecture pace"
+    ],
+    "examStyle": "Quizzes and projects"
+  },
+  "cached": false
+}</code></pre>
+          <p>
+            <code>cached</code> is true when Redis supplied an existing summary.
+            <code>sentimentScore</code> ranges from 0 to 100. Pros and cons are
+            intended to contain three short strings each.
+          </p>
+          <h3>Errors</h3>
+          <ul>
+            <li><code>400</code> — <code>Missing school or professorName</code></li>
+            <li><code>404</code> — <code>School not found</code></li>
+            <li><code>404</code> — <code>Professor not found</code></li>
+            <li><code>404</code> — <code>No written reviews found</code></li>
+            <li><code>429</code> — shared rate limit exceeded</li>
+            <li><code>500</code> — <code>Server error fetching data</code></li>
+          </ul>
+        </section>
+
+        <section class="endpoint" id="school-request">
+          <div class="endpoint__title">
+            <span class="method method--post">POST</span>
+            <h2>/api/collect/store</h2>
+          </div>
+          <p>
+            Stores a school support request in Redis for 14 days and returns a
+            random request ID. Only <code>school</code> and <code>pages</code> are
+            checked for presence, but a useful submission should include all
+            fields shown below.
+          </p>
+          <pre><code>{
+  "school": {
+    "id": 123456,
+    "name": "Example University",
+    "website": "www.example.edu"
+  },
+  "pageUrl": "https://registration.example.edu/search",
+  "pages": [
+    {
+      "name": "Class Search",
+      "url": "https://registration.example.edu/search"
+    }
+  ]
+}</code></pre>
+          <p>
+            The server stores extra supplied JSON fields. Do not submit secrets,
+            student records, login information, or unnecessary page content.
+          </p>
+          <h3>Successful response</h3>
+          <pre><code>{
+  "success": true,
+  "requestId": "0d10a980-4eb1-4636-9940-a45026e50413"
+}</code></pre>
+          <p>
+            One IP can submit at most three requests for the same
+            <code>school.id</code> in 10 minutes. A fourth returns <code>429</code>
+            with <code>Too many requests for this school. Try again later.</code>
+          </p>
+          <h3>Other errors</h3>
+          <ul>
+            <li><code>400</code> — <code>Invalid payload.</code></li>
+            <li><code>400</code> — <code>This school is already supported.</code></li>
+            <li><code>500</code> — <code>Failed to store school request.</code></li>
+          </ul>
+        </section>
+
+        <section class="endpoint" id="dom-collection">
+          <div class="endpoint__title">
+            <span class="method method--post">POST</span>
+            <h2>/api/collectData/collectData</h2>
+          </div>
+          <p>
+            Stores a sanitized structural sample of a registration page in Redis
+            for seven days. A later submission for the same lowercased hostname
+            replaces the earlier value.
+          </p>
+          <div class="callout">
+            Remove student names, IDs, course choices, tokens, form values, and
+            private data before sending HTML. This endpoint is for structure,
+            selectors, and counts.
+          </div>
+          <h3>Fields</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Field</th><th>Required</th><th>Default</th></tr></thead>
+              <tbody>
+                <tr><td><code>hostname</code></td><td>Yes</td><td>None</td></tr>
+                <tr><td><code>skeletons.table</code></td><td>Yes</td><td>None</td></tr>
+                <tr><td><code>pathname</code></td><td>No</td><td>Empty string</td></tr>
+                <tr><td><code>capturedAt</code></td><td>No</td><td>Current server time</td></tr>
+                <tr><td><code>detection</code></td><td>No</td><td>Empty object</td></tr>
+                <tr><td><code>selectorHints</code></td><td>No</td><td>Empty object</td></tr>
+                <tr><td><code>counts</code></td><td>No</td><td>Empty object</td></tr>
+                <tr><td><code>skeletons.movableBlock</code></td><td>No</td><td>Empty string</td></tr>
+                <tr><td><code>skeletons.groupContainerPreview</code></td><td>No</td><td>Empty string</td></tr>
+                <tr><td><code>siblingSignatures</code></td><td>No</td><td>Empty array</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Example request</h3>
+          <pre><code>{
+  "hostname": "registration.example.edu",
+  "pathname": "/class-search",
+  "detection": { "strategy": "table-headers" },
+  "selectorHints": {
+    "table": "#class-results",
+    "instructor": ".instructor-name"
+  },
+  "counts": { "rowCount": 20, "siblingCount": 3 },
+  "skeletons": {
+    "table": "&lt;table id=\"class-results\"&gt;...&lt;/table&gt;",
+    "movableBlock": "&lt;div class=\"section-card\"&gt;...&lt;/div&gt;",
+    "groupContainerPreview": "&lt;div id=\"results\"&gt;...&lt;/div&gt;"
+  },
+  "siblingSignatures": [
+    { "tag": "div", "className": "section-card" }
+  ]
+}</code></pre>
+          <h3>Successful response</h3>
+          <pre><code>{
+  "message": "Structure received successfully",
+  "school": "registration.example.edu",
+  "saved": {
+    "hasTable": true,
+    "hasMovableBlock": true,
+    "hasGroupContainerPreview": true,
+    "siblingCount": 3
+  }
+}</code></pre>
+          <p>
+            Missing <code>hostname</code> or <code>skeletons.table</code> returns
+            <code>400</code>. Storage failures return <code>500</code>. This route
+            also uses the shared rate limiter.
+          </p>
+        </section>
+
+        <section class="endpoint" id="checkout">
+          <div class="endpoint__title">
+            <span class="method method--post">POST</span>
+            <h2>/api/checkout/create-checkout-session</h2>
+          </div>
+          <p>
+            Creates a one-time Stripe Checkout Session for one unit of the price
+            configured by <code>STRIPE_PRICE_ID</code>. The request body is not
+            currently read, so an empty object is sufficient.
+          </p>
+          <pre><code>const response = await fetch(
+  "http://localhost:3000/api/checkout/create-checkout-session",
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  },
+);
+
+const result = await response.json();
+if (!response.ok) throw new Error(result.error);
+window.location.assign(result.url);</code></pre>
+          <h3>Successful response</h3>
+          <pre><code>{
+  "url": "https://checkout.stripe.com/c/pay/cs_test_example"
+}</code></pre>
+          <p>
+            The success redirect is
+            <code>{FRONTEND_URL}/index.html?payment=success&amp;session_id={CHECKOUT_SESSION_ID}</code>.
+            Cancellation redirects to
+            <code>{FRONTEND_URL}/index.html?payment=cancel</code>.
+          </p>
+          <div class="callout">
+            A success redirect alone is not secure proof of payment. Fulfillment
+            should verify the Stripe session or a Stripe webhook when implemented.
+          </div>
+          <p>
+            A missing price ID returns <code>500</code> with
+            <code>Missing STRIPE_PRICE_ID</code>. Other Stripe failures return
+            <code>Failed to create checkout session</code>. This endpoint has no
+            shared API rate limiter.
+          </p>
+        </section>
+
+        <section class="card" id="utilities">
+          <h2>Utility endpoints</h2>
+
+          <h3><span class="method method--get">GET</span> <code>/</code></h3>
+          <p>Returns plain text: <code>Hello from BroncoSort Backend!</code></p>
+
+          <h3><span class="method method--get">GET</span> <code>/api/health</code></h3>
+          <pre><code>{
+  "status": "active",
+  "serverTime": "2026-06-22T18:30:00.000Z"
+}</code></pre>
+          <p>
+            This confirms that the Express process responds. It does not verify
+            Redis or any third-party integration.
+          </p>
+
+          <h3><span class="method method--get">GET</span> <code>/ip</code></h3>
+          <pre><code>{
+  "ip": "203.0.113.10",
+  "ips": ["203.0.113.10"],
+  "header": "203.0.113.10"
+}</code></pre>
+          <p>
+            This diagnostic endpoint shows Express's selected client IP, parsed
+            proxy chain, and raw <code>X-Forwarded-For</code> header. The app
+            trusts one proxy hop, which affects IP-based rate limiting.
+          </p>
+        </section>
+
+        <section class="card" id="environment">
+          <h2>Environment variables</h2>
+          <p>Copy <code>.env.example</code> to <code>.env</code> and replace placeholders.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
+              <tbody>
+                <tr><td><code>PORT</code></td><td>HTTP port; defaults to 3000</td></tr>
+                <tr><td><code>UPSTASH_REDIS_REST_URL</code></td><td>Redis REST endpoint</td></tr>
+                <tr><td><code>UPSTASH_REDIS_REST_TOKEN</code></td><td>Redis REST credential</td></tr>
+                <tr><td><code>COLLEGE_SCORECARD_API_KEY</code></td><td>College Scorecard search</td></tr>
+                <tr><td><code>GEMINI_API_KEY</code></td><td>Professor review summaries</td></tr>
+                <tr><td><code>STRIPE_SECRET_KEY</code></td><td>Stripe server client</td></tr>
+                <tr><td><code>STRIPE_PRICE_ID</code></td><td>Checkout price</td></tr>
+                <tr><td><code>FRONTEND_URL</code></td><td>Checkout redirect base URL</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">
+            Never put server credentials in extension code, browser JavaScript,
+            screenshots, documentation examples, or commits.
+          </div>
+          <p>
+            The server currently imports Gemini and Stripe integrations during
+            startup, so <code>GEMINI_API_KEY</code> and
+            <code>STRIPE_SECRET_KEY</code> must be configured even when testing
+            unrelated endpoints.
+          </p>
+        </section>
+
+        <section class="card" id="error-handling">
+          <h2>Reusable frontend error handling</h2>
+          <p>
+            <code>fetch</code> does not throw just because a server responds with
+            <code>400</code>, <code>404</code>, <code>429</code>, or
+            <code>500</code>. Check <code>response.ok</code> explicitly.
+          </p>
+          <pre><code>async function requestJson(url, options = {}) {
+  const response = await fetch(url, options);
+
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(body?.error ?? `HTTP ${response.status}`);
+  }
+
+  return body;
+}</code></pre>
+          <p>
+            When receiving <code>429</code>, wait before retrying. Do not retry in
+            a tight loop. The standard limiter sends headers that can help a
+            client decide when another attempt is appropriate.
+          </p>
+        </section>
+
+        <section class="card" id="limitations">
+          <h2>Current limitations</h2>
+          <ul>
+            <li>There is no version prefix such as <code>/api/v1</code>.</li>
+            <li>There is no generated OpenAPI schema.</li>
+            <li>The API does not authenticate callers.</li>
+            <li>The checkout route has no endpoint-specific rate limiter.</li>
+            <li>Collection payloads only receive shallow validation.</li>
+            <li>Health checks do not verify external dependencies.</li>
+            <li>Some old standalone test scripts reference obsolete routes or payloads.</li>
+          </ul>
+          <p>
+            The endpoint paths on this page match the current route mounts in
+            <code>server.js</code> and the current files in <code>routes/</code>.
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <footer class="footer">
+      BroncoSort backend API documentation
+    </footer>
+  </body>
+</html>

@@ -1,4 +1,6 @@
-//scheduleBuilder.js
+// Legacy implementation retained on disk but not loaded by manifest.json.
+// Active schedule-builder logic now lives in src/bootstrap.js, src/core/,
+// and src/adapters/cppScheduleBuilder.js.
 const IS_LOCAL = false;
 const POPUP_SCALE = 0.6;
 
@@ -302,12 +304,9 @@ function showScheduleProfessorPopup(prof, anchorEl) {
   const departmentTotal = ranking?.departmentTotal ?? null;
 
   const ringDegrees =
-    topPercent != null
-      ? Math.min(((100 - topPercent) / 100) * 360, 360)
-      : 88;
+    topPercent != null ? Math.min(((100 - topPercent) / 100) * 360, 360) : 88;
 
-  const rankTitle =
-    topPercent != null ? `Top ${topPercent}%` : "Coming Soon";
+  const rankTitle = topPercent != null ? `Top ${topPercent}%` : "Coming Soon";
 
   const rankSub =
     departmentRank != null && departmentTotal != null
@@ -326,7 +325,7 @@ function showScheduleProfessorPopup(prof, anchorEl) {
 
       <div class="bs-person">
         <div class="bs-name">
-          ${isFound ? (prof.profName || prof.name) : prof.name}
+          ${isFound ? prof.profName || prof.name : prof.name}
         </div>
         <div class="bs-dept">${prof.department || "Computer Science"}</div>
       </div>
@@ -383,12 +382,13 @@ function showScheduleProfessorPopup(prof, anchorEl) {
         <div class="bs-stars">
           ${getScheduleStars(rating)}
         </div>
-          <div>${!isFound
-      ? "Not on RateMyProfessors"
-      : hasReviews
-        ? `Based on <strong>${reviews}</strong> student reviews`
-        : "No student reviews yet"
-    }</div>
+          <div>${
+            !isFound
+              ? "Not on RateMyProfessors"
+              : hasReviews
+                ? `Based on <strong>${reviews}</strong> student reviews`
+                : "No student reviews yet"
+          }</div>
       </div>
 
       <a class="bs-btn" target="_blank">
@@ -421,9 +421,7 @@ function showScheduleProfessorPopup(prof, anchorEl) {
   const spaceBelow = window.innerHeight - r.bottom;
 
   const top =
-    spaceBelow < popupHeight + 16
-      ? r.top - popupHeight - 8
-      : r.bottom + 8;
+    spaceBelow < popupHeight + 16 ? r.top - popupHeight - 8 : r.bottom + 8;
 
   const left = Math.min(r.left, window.innerWidth - popupWidth - 12);
 

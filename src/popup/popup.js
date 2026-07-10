@@ -1,4 +1,4 @@
-// popup.js
+// src/popup/popup.js
 
 const schoolInput = document.getElementById("schoolSearch");
 const schoolDropdown = document.getElementById("schoolDropdown");

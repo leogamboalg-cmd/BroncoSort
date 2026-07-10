@@ -33,6 +33,10 @@ function dedupeNames(names) {
   return [...new Set(names.map((n) => n.trim()).filter(Boolean))];
 }
 
+function getProfessorCacheKey(schoolId, professorName) {
+  return `rmp:prof:${schoolId}:${normalizeName(professorName)}`;
+}
+
 export const findSchoolAndProfessors = async (req, res) => {
   try {
     const { school, professors } = req.body;
@@ -68,14 +72,12 @@ export const findSchoolAndProfessors = async (req, res) => {
 
     const ratingsByName = {};
 
-    const cacheKeys = cleanedProfessors.map(
-      (prof) => `rmp:${matchedSchool.id}:${normalizeName(prof)}`,
+    const cacheKeys = cleanedProfessors.map((professor) =>
+      getProfessorCacheKey(matchedSchool.id, professor),
     );
 
     const cachedResults =
       cacheKeys.length > 0 ? await redis.mget(...cacheKeys) : [];
-    const idsToFetch = [];
-    const idToQueryMap = {};
 
     // 2. Search each professor within that school
     for (let i = 0; i < cleanedProfessors.length; i++) {
@@ -86,11 +88,6 @@ export const findSchoolAndProfessors = async (req, res) => {
       try {
         if (cached) {
           ratingsByName[profQuery] = cached;
-
-          if (cached.id && (cached.numRatings ?? 0) > 0) {
-            idsToFetch.push(`rank:prof:${cached.id}`);
-            idToQueryMap[cached.id] = profQuery;
-          }
 
           continue;
         }
@@ -141,11 +138,6 @@ export const findSchoolAndProfessors = async (req, res) => {
         }
         const numRatings = exactMatch.num_ratings || 0;
 
-        if (numRatings > 0) {
-          idsToFetch.push(`rank:prof:${exactMatch.id}`);
-          idToQueryMap[exactMatch.id] = profQuery;
-        }
-
         ratingsByName[profQuery] = {
           found: true,
           profName: exactMatch.name,
@@ -175,26 +167,6 @@ export const findSchoolAndProfessors = async (req, res) => {
           error: "Lookup failed",
         };
       }
-    }
-    if (idsToFetch.length > 0) {
-      const rankingResults = await redis.mget(...idsToFetch);
-
-      idsToFetch.forEach((key, index) => {
-        const id = key.split(":")[2];
-        const profQuery = idToQueryMap[id];
-
-        if (ratingsByName[profQuery]) {
-          const ranking = rankingResults[index] ?? null;
-
-          ratingsByName[profQuery].ranking = ranking;
-
-          const cacheKey = `rmp:${matchedSchool.id}:${normalizeName(profQuery)}`;
-
-          redis.set(cacheKey, ratingsByName[profQuery], {
-            ex: TTL,
-          });
-        }
-      });
     }
 
     return res.json({

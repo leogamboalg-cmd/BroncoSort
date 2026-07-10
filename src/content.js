@@ -1,4 +1,6 @@
-//content.js
+// Legacy implementation retained on disk but not loaded by manifest.json.
+// Active course-search logic now lives in src/bootstrap.js, src/core/,
+// and src/adapters/.
 const USE_LOCAL = false;
 const SCALE = 0.6;
 const API_BASE = USE_LOCAL

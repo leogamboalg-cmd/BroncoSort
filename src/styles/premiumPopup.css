@@ -1,0 +1,197 @@
+.bs-premium-popup {
+  position: fixed;
+  z-index: 999999;
+  width: 420px;
+  font-family: Arial, sans-serif;
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transform: scale(0.68);
+  transform-origin: top left;
+}
+
+.bs-premium-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px;
+  color: white;
+  background: linear-gradient(135deg, #064d23, #0b6b32);
+}
+
+.bs-premium-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 12px;
+  background: white;
+  color: #0b5c2a;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.bs-premium-person {
+  flex: 1;
+}
+
+.bs-premium-name {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.bs-premium-department {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.bs-premium-rmp {
+  color: white;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.bs-premium-body {
+  padding: 22px;
+}
+
+.bs-premium-top-row,
+.bs-premium-stats,
+.bs-premium-reviews,
+.bs-premium-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.bs-premium-top-row {
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.bs-premium-rank,
+.bs-premium-gpa {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bs-premium-kpi-icon {
+  font-size: 28px;
+}
+
+.bs-premium-kpi-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: #07111f;
+}
+
+.bs-premium-kpi-sub {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.35;
+}
+
+.bs-premium-stats {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.bs-premium-stat {
+  flex: 1;
+}
+
+.bs-premium-stat-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #065f2a;
+  text-transform: uppercase;
+}
+
+.bs-premium-stat-value {
+  font-size: 28px;
+  font-weight: 900;
+  margin: 8px 0;
+}
+
+.bs-premium-stat-value span {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.bs-premium-bar {
+  height: 7px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bs-premium-bar div {
+  height: 100%;
+  background: #0b6b32;
+  border-radius: 999px;
+}
+
+.bs-premium-reviews {
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.bs-premium-stars {
+  color: #0b6b32;
+  font-size: 22px;
+  letter-spacing: 5px;
+}
+
+.bs-premium-actions {
+  margin-bottom: 12px;
+}
+
+.bs-premium-secondary {
+  flex: 1;
+  border: 1px solid #b8d4bf;
+  background: #f4faf6;
+  color: #075522;
+  border-radius: 10px;
+  padding: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.bs-premium-main-button {
+  display: block;
+  text-align: center;
+  background: linear-gradient(135deg, #075522, #0b6b32);
+  color: white;
+  text-decoration: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-weight: 900;
+}
+
+.bs-premium-footer {
+  margin-top: 12px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.bs-premium-live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #16a34a;
+  border-radius: 999px;
+  margin-right: 6px;
+}

@@ -1,3 +1,5 @@
+// src/background.js
+
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "update") {
     chrome.tabs.create({

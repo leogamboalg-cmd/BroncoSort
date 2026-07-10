@@ -4,6 +4,7 @@ BroncoSort-extension-*/
 BroncoSort-extension*.zip
 *.zip
 dist/
+build/
 
 # Local environment files
 .env
@@ -39,6 +40,7 @@ RegistrationDOM.txt
 collectProfessors.js
 rearrange.js
 temp.js
+contentTest.js
 assets/images/Adobe Express - file.png
 assets/images/BroncoSort.png
 assets/images/BroncoSortTest-removebg-preview.png
@@ -52,6 +54,7 @@ collectDataTest.js
 commentTest.js
 testing/
 requestSchoolAPITest.js
+rateLimitTest.txt
 
 new_features/
 backend/new_features/

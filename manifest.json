@@ -196,12 +196,20 @@
     "service_worker": "src/background.js"
   },
 
+  "web_accessible_resources": [
+    {
+      "resources": ["src/styles/content.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+
   "content_scripts": [
     {
       "matches": [
         "https://calstate.edu/*",
         "https://*.calstate.edu/*",
-
+        "http://127.0.0.1/*",
+        "http://localhost/*",
         "https://cpp.edu/*",
         "https://*.cpp.edu/*",
 
@@ -378,8 +386,25 @@
         "https://norcocollege.edu/*",
         "https://*.norcocollege.edu/*"
       ],
-      "js": ["src/content.js", "src/scheduleBuilder.js"],
+      "js": [
+        "src/config/schools.js",
+        "src/core/professorNames.js",
+        "src/core/ratingsApi.js",
+        "src/core/professorPopup.js",
+        "src/core/premiumProfessorPopup.js",
+        "src/core/ratingRenderer.js",
+        "src/core/styleLoader.js",
+        "src/core/observer.js",
+        "src/core/pageContext.js",
+        "src/core/courseProcessor.js",
+        "src/core/schoolRequest.js",
+        "src/adapters/cppPeopleSoft.js",
+        "src/adapters/cppScheduleBuilder.js",
+        "src/adapters/citrusRegistration.js",
+        "src/bootstrap.js"
+      ],
       "all_frames": true,
+      "match_about_blank": true,
       "run_at": "document_idle"
     }
   ]
