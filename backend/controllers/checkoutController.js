@@ -79,3 +79,60 @@ export const createCheckoutSession = async (req, res) => {
     });
   }
 };
+
+export const verifyCheckoutSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        error: "Missing Stripe session ID",
+      });
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== "paid") {
+      return res.status(400).json({
+        error: "Payment has not been completed",
+        paymentStatus: session.payment_status,
+      });
+    }
+
+    const userId = session.metadata?.userId || session.client_reference_id;
+
+    if (!userId) {
+      return res.status(400).json({
+        error: "No user ID was attached to this checkout session",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        isPremium: true,
+      },
+      {
+        new: true,
+      },
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      isPremium: user.isPremium,
+      paymentStatus: session.payment_status,
+    });
+  } catch (error) {
+    console.error("Stripe verification error:", error);
+
+    return res.status(500).json({
+      error: "Failed to verify checkout session",
+    });
+  }
+};
