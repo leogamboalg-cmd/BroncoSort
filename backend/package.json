@@ -20,6 +20,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",
+    "mongoose": "^9.7.4",
     "ratemyprofessors-client": "^2.1.5",
     "redis": "^5.12.1",
     "stripe": "^22.2.0"
